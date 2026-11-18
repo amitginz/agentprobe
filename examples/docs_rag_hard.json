@@ -1,0 +1,115 @@
+{
+ "name": "docs-rag-hard",
+ "tasks": [
+  {
+   "input": "My async web scraper hangs forever when a server stops responding",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What happens if I call time.sleep inside async code?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Do gather results come back in the order I passed them?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "The client got a 409, what does that mean?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How should I page through large result sets in my API?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Is it safe to retry a DELETE request?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why does my docker build reinstall all the packages every time?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I keep database data after the container is removed?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Run the API, database and cache together with one command",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "I have an index on (country, city) but my query only filters on city",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Too many indexes are slowing down my inserts",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I undo a commit that is already pushed to main?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How long should the first line of a commit message be?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I make the model say it does not know instead of guessing?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Ways to lower token spend in my app",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I validate JSON output from a model?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I configure a Kubernetes ingress controller?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I use git cherry-pick?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I create an index in MongoDB?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How does GraphQL handle pagination?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I fine-tune a language model?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I deploy a Flask app to AWS Lambda?",
+   "expected": "I don't know",
+   "judge": "contains"
+  }
+ ]
+}

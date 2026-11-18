@@ -69,6 +69,51 @@ Evaluate your own agent by exposing an endpoint that accepts `{"input": "..."}` 
 agentprobe run --dataset my_tasks.json --agent "http:http://localhost:9000/agent" --budget 2.50
 ```
 
+## Case study: evaluating a real RAG agent
+
+The first real agent under test is my own `docs-rag-mcp` (ChromaDB retrieval over
+markdown docs, answers with citations and an "I don't know" guardrail). It runs unmodified behind
+a 90-line HTTP wrapper ([`examples/docs_rag_agent.py`](examples/docs_rag_agent.py)), and its
+hand-written eval questions became AgentProbe datasets
+([`build_docs_rag_datasets.py`](examples/build_docs_rag_datasets.py)). Two kinds of check, both
+deterministic: *in-scope* questions must retrieve the right document; *out-of-scope* questions
+must be refused instead of answered.
+
+![AgentProbe dashboard over the docs-rag runs](docs/dashboard.jpg)
+
+Pipeline settings are query-string parameters, so each configuration is just another agent spec.
+I swept the relevance-distance threshold and `k` on the 22-question hard set (16 in-scope, 6
+near-topic out-of-scope such as "How do I create an index in MongoDB?" against SQL-indexing docs):
+
+| Configuration | In-scope found | Out-of-scope refused | Pass |
+|---|---|---|---|
+| k=3, threshold 0.50 | 7/16 | 6/6 | 13/22 |
+| k=3, threshold 0.55 | 7/16 | 5/6 | 12/22 |
+| k=3, threshold 0.60 | 10/16 | 4/6 | 14/22 |
+| k=3, threshold 0.65 | 10/16 | 4/6 | 14/22 |
+| k=3, threshold 0.70 | 13/16 | 3/6 | 16/22 |
+| **k=3, threshold 0.75 (current default)** | **16/16** | **1/6** | **17/22** |
+| k=3, threshold 0.95 | 16/16 | 0/6 | 16/22 |
+| k=1, threshold 0.75 | 14/16 | 1/6 | 15/22 |
+
+What this shows (all numbers are real runs, reproducible with the commands in the example files):
+
+1. **Retrieval is solid, refusal is not.** The default finds the right document for 16/16
+   in-scope questions, but answers 5 of 6 near-topic questions it should have refused.
+2. **No threshold fixes it.** Tightening the distance cutoff trades one failure for the other
+   (0.50 refuses everything out-of-scope but loses 9 in-scope questions). Paraphrased in-scope
+   questions and near-topic out-of-scope questions overlap in embedding distance, so a single
+   cutoff cannot separate them. The next improvement has to be a second-stage relevance check
+   (reranker or LLM gate), not more threshold tuning.
+3. **The statistics refuse to oversell.** Threshold 0.50 vs the default is -18 points
+   (77% → 59%), yet `agentprobe compare` reports *no significant change* (9 broke, 5 fixed, exact
+   McNemar p = 0.42): with 22 questions that gap is within what shuffling can produce. The honest
+   next step is more questions, not a confident claim.
+
+The answers in these runs are extractive because no `ANTHROPIC_API_KEY` was set in the pipeline;
+the retrieval and refusal behaviour measured here is the same with an LLM, but answer *quality*
+(which the `llm` judge is for) was not evaluated.
+
 ## LLM-as-judge, and how far to trust it
 
 For open-ended answers set `"judge": "llm"` and a `rubric` per task (see
@@ -94,6 +139,6 @@ Honest status: the core loop above works and is tested. Planned next:
 
 - [ ] OpenTelemetry traces for each agent step
 - [ ] Reusable GitHub Action wrapper
-- [ ] Evaluate docs-rag-mcp as the first real agent under test
+- [ ] Grow the docs-rag datasets (22 questions cannot resolve small effects) and evaluate a reranker gate
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and the trade-offs behind it.

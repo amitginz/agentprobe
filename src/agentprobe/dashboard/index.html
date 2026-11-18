@@ -107,7 +107,7 @@ const $ = (sel) => document.querySelector(sel);
 // Everything that comes from agents or datasets is untrusted: always escape before inserting.
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pct = (v, d = 1) => (v * 100).toFixed(d) + "%";
-const usd = (v) => (v >= 0.01 ? "$" + v.toFixed(2) : v >= 0.0001 ? "$" + v.toFixed(4) : "$" + v.toFixed(6));
+const usd = (v) => (v === 0 ? "$0" : v >= 0.01 ? "$" + v.toFixed(2) : v >= 0.0001 ? "$" + v.toFixed(4) : "$" + v.toFixed(6));
 const ms = (v) => (v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms");
 const DONE = new Set(["completed", "budget_exceeded"]);
 
@@ -134,12 +134,13 @@ function statusPill(s) {
 }
 
 /* ---------- charts: dependency-free inline SVG ---------- */
-function lineChart(title, points, fmt, domain) {
+function lineChart(title, points, fmt, domain, hideIfZero) {
   if (points.length === 0) return `<div class="card"><h2>${esc(title)}</h2><div class="empty">No completed runs yet</div></div>`;
+  if (hideIfZero && points.every((p) => p.v === 0)) return `<div class="card"><h2>${esc(title)}</h2><div class="empty">${esc(hideIfZero)}</div></div>`;
   const W = 360, H = 160, L = 62, R = 12, T = 10, B = 24;
   let [lo, hi] = domain || [Math.min(...points.map((p) => p.v)), Math.max(...points.map((p) => p.v))];
   if (hi === lo) { const p = Math.abs(hi) * 0.1 || 1; hi += p; lo = Math.max(0, lo - p); }  // flat or single-point series
-  if (!domain) { const pad = (hi - lo) * 0.15; lo = Math.max(0, lo - pad); hi += pad; }
+  if (!domain) { lo = 0; hi += (hi - lo) * 0.1; }  // zero baseline: a 2 ms wobble must not look like a 4x swing
   const x = (i) => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
   const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const ticks = [lo, (lo + hi) / 2, hi];
@@ -177,7 +178,7 @@ function renderCharts() {
     bad: i > 0 && r.stats.pass_rate < done[i - 1].stats.pass_rate - 0.05 }));
   $("#charts").innerHTML =
     lineChart("Pass rate (red = dropped over 5 pts)", pts, (v) => pct(v, 0), [0, 1]) +
-    lineChart("Mean cost per task", done.map((r) => ({ id: r.id, label: r.label, v: r.stats.mean_cost_usd })), (v) => usd(v)) +
+    lineChart("Mean cost per task", done.map((r) => ({ id: r.id, label: r.label, v: r.stats.mean_cost_usd })), (v) => usd(v), null, "This agent does not report cost") +
     lineChart("p95 latency", done.map((r) => ({ id: r.id, label: r.label, v: r.stats.p95_latency_ms })), (v) => ms(v));
 }
 

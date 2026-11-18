@@ -214,3 +214,7 @@ Honest status: the core loop above works and is tested. Planned next:
 - [ ] Grow the docs-rag datasets (25-37 questions cannot resolve small effects): the reranker gate result is inconclusive
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and the trade-offs behind it.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

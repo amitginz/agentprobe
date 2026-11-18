@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: pytest -q
+  agent-quality-gate:
+    # Demo of the product's core use case: fail the build if the candidate agent regressed.
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e .
+      - run: agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.9,seed=1" --label baseline
+      - run: agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.9,seed=2" --label candidate
+      - run: agentprobe compare --baseline 1 --candidate 2 --fail-on-regression

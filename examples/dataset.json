@@ -1,0 +1,205 @@
+{
+ "name": "geo-qa-v1",
+ "tasks": [
+  {
+   "input": "What is the capital of France?",
+   "expected": "Paris",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Japan?",
+   "expected": "Tokyo",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Canada?",
+   "expected": "Ottawa",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Brazil?",
+   "expected": "Brasilia",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Egypt?",
+   "expected": "Cairo",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Kenya?",
+   "expected": "Nairobi",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Norway?",
+   "expected": "Oslo",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Peru?",
+   "expected": "Lima",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Spain?",
+   "expected": "Madrid",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Italy?",
+   "expected": "Rome",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Chile?",
+   "expected": "Santiago",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Greece?",
+   "expected": "Athens",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Austria?",
+   "expected": "Vienna",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Ireland?",
+   "expected": "Dublin",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Poland?",
+   "expected": "Warsaw",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Cuba?",
+   "expected": "Havana",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Thailand?",
+   "expected": "Bangkok",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Turkey?",
+   "expected": "Ankara",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Portugal?",
+   "expected": "Lisbon",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the capital of Ghana?",
+   "expected": "Accra",
+   "judge": "contains"
+  },
+  {
+   "input": "Look up the population of Paris",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Tokyo",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Lima",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Oslo",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Rome",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Cairo",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Accra",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Vienna",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Dublin",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Look up the population of Athens",
+   "expected": "search",
+   "judge": "tool_called"
+  },
+  {
+   "input": "Give the ISO code for Germany",
+   "expected": "DE",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for France",
+   "expected": "FR",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Japan",
+   "expected": "JP",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Brazil",
+   "expected": "BR",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Canada",
+   "expected": "CA",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for India",
+   "expected": "IN",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Spain",
+   "expected": "ES",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Italy",
+   "expected": "IT",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Mexico",
+   "expected": "MX",
+   "judge": "regex"
+  },
+  {
+   "input": "Give the ISO code for Norway",
+   "expected": "NO",
+   "judge": "regex"
+  }
+ ]
+}

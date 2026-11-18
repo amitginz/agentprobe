@@ -35,6 +35,7 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | Agents | Spec-string adapters: `mock:` (deterministic simulated agent) and `http:` (any remote agent that returns JSON) |
 | Analysis | Paired comparison: pass-rate delta, broken/fixed counts, exact p-value, cost and p95 latency |
 | API | FastAPI: datasets, runs (async, background execution), results, `/compare` |
+| Queue | **Redis job queue with leases and heartbeats**: at-least-once delivery, crash recovery that resumes unfinished runs, poison-job protection, horizontally scalable `agentprobe worker` processes |
 | Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL` |
 | Ops | Dockerfile, docker-compose with Postgres, GitHub Actions CI with an agent-quality gate |
 
@@ -43,9 +44,15 @@ Run the service:
 ```bash
 pip install -e ".[dev]"
 uvicorn agentprobe.api:app_factory --factory --reload   # http://localhost:8000/docs
-docker compose up --build                                # API + PostgreSQL
+docker compose up --build                                # API + 2 workers + Redis + PostgreSQL
 pytest
 ```
+
+Execution modes: with `REDIS_URL` set the API only enqueues runs and returns `202`; any number of
+`agentprobe worker` processes (on any machine that can reach Redis and the database) execute them.
+Without it, runs execute in a background task of the API process, which is handy for local use.
+If a worker is killed mid-run, its lease expires, another worker picks the run up, and it
+**resumes from the tasks already finished** rather than starting over or re-spending the budget.
 
 Evaluate your own agent by exposing an endpoint that accepts `{"input": "..."}` and returns
 `{"output": "...", "tool_calls": [...], "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0}`:
@@ -58,7 +65,6 @@ agentprobe run --dataset my_tasks.json --agent "http:http://localhost:9000/agent
 
 Honest status: the core loop above works and is tested. Planned next:
 
-- [ ] Redis-backed job queue + separate worker processes (today runs execute in-process)
 - [ ] LLM-as-judge with calibration against human labels
 - [ ] Web dashboard (pass-rate, cost and latency trends per agent version)
 - [ ] OpenTelemetry traces for each agent step

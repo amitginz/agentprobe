@@ -9,11 +9,25 @@ services:
       test: ["CMD-SHELL", "pg_isready -U agentprobe"]
       interval: 5s
       retries: 10
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
   api:
     build: .
-    environment:
+    environment: &env
       DATABASE_URL: postgresql+psycopg://agentprobe:agentprobe@db/agentprobe
+      REDIS_URL: redis://redis:6379/0
     ports: ["8000:8000"]
-    depends_on:
-      db:
-        condition: service_healthy
+    depends_on: &deps
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  worker:
+    build: .
+    command: ["agentprobe", "worker"]
+    environment: *env
+    depends_on: *deps
+    deploy:
+      replicas: 2

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 from sqlalchemy import select
@@ -67,6 +68,23 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 1 if args.fail_on_regression and cmp.verdict == "regression" else 0
 
 
+def cmd_worker(args: argparse.Namespace) -> int:
+    import logging
+    import signal
+    import threading
+
+    from .jobqueue import RedisQueue
+    from .worker import Worker
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    stop = threading.Event()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, lambda *_: stop.set())  # finish the current run, then exit
+    queue = RedisQueue.from_url(args.redis_url, lease_seconds=args.lease)
+    Worker(Database(args.db), queue).run_forever(stop)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="agentprobe")
     parser.add_argument("--db", default=None, help="database URL (default: sqlite:///agentprobe.db)")
@@ -86,6 +104,11 @@ def main(argv: list[str] | None = None) -> int:
     p_cmp.add_argument("--alpha", type=float, default=0.05)
     p_cmp.add_argument("--fail-on-regression", action="store_true")
     p_cmp.set_defaults(func=cmd_compare)
+
+    p_wk = sub.add_parser("worker", help="run a queue worker that executes enqueued runs")
+    p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+    p_wk.add_argument("--lease", type=float, default=60.0, help="seconds before a silent worker's job is requeued")
+    p_wk.set_defaults(func=cmd_worker)
 
     args = parser.parse_args(argv)
     return args.func(args)

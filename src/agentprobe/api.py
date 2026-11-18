@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -10,8 +12,9 @@ from . import __version__
 from .agents import build_agent
 from .compare import compare_runs, run_stats
 from .db import Database, Dataset, Run, Task, TaskResult
+from .jobqueue import RedisQueue
 from .judges import JUDGES
-from .runner import execute_run
+from .runner import execute_run, fail_run
 
 
 class TaskIn(BaseModel):
@@ -35,14 +38,32 @@ class RunIn(BaseModel):
     budget_usd: float | None = Field(default=None, gt=0)
 
 
-def create_app(database_url: str | None = None, run_inline: bool = False) -> FastAPI:
-    """App factory. `run_inline` executes runs synchronously (used by tests)."""
+def create_app(
+    database_url: str | None = None,
+    run_inline: bool = False,
+    queue: RedisQueue | None = None,
+) -> FastAPI:
+    """App factory.
+
+    Execution mode: `run_inline` runs synchronously (tests); a `queue` hands runs to separate
+    worker processes; with neither, runs execute in a background task of this process.
+    """
     db = Database(database_url)
     app = FastAPI(title="AgentProbe", version=__version__)
 
     @app.get("/health")
     def health() -> dict:
-        return {"status": "ok", "version": __version__}
+        info: dict = {"status": "ok", "version": __version__, "execution": "inline"}
+        if queue is not None:
+            info["execution"] = "queue"
+            try:
+                info["queue"] = queue.stats()
+            except Exception:  # noqa: BLE001
+                info["status"] = "degraded"
+                info["queue"] = "unreachable"
+        elif not run_inline:
+            info["execution"] = "in-process"
+        return info
 
     @app.post("/datasets", status_code=201)
     def create_dataset(body: DatasetIn) -> dict:
@@ -80,6 +101,12 @@ def create_app(database_url: str | None = None, run_inline: bool = False) -> Fas
             run_id = run.id
         if run_inline:
             execute_run(db, run_id)
+        elif queue is not None:
+            try:
+                queue.enqueue(run_id)
+            except Exception as exc:
+                fail_run(db, run_id, f"could not enqueue: {exc}")
+                raise HTTPException(503, "job queue unavailable") from exc
         else:
             background.add_task(execute_run, db, run_id)
         return {"id": run_id, "status": "pending"}
@@ -135,7 +162,8 @@ def create_app(database_url: str | None = None, run_inline: bool = False) -> Fas
 
 def app_factory() -> FastAPI:
     """Entry point for `uvicorn agentprobe.api:app_factory --factory`."""
-    return create_app()
+    redis_url = os.environ.get("REDIS_URL")
+    return create_app(queue=RedisQueue.from_url(redis_url) if redis_url else None)
 
 
 __all__ = ["TaskResult", "app_factory", "create_app"]

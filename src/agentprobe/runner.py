@@ -42,6 +42,8 @@ class Outcome:
     latency_ms: float
     attempts: int
     error: str
+    judge_reasoning: str = ""
+    judge_cost_usd: float = 0.0
 
 
 def run_task(agent: Agent, task: TaskSpec, retries: int) -> Outcome:
@@ -57,8 +59,16 @@ def run_task(agent: Agent, task: TaskSpec, retries: int) -> Outcome:
             last_error = f"{type(exc).__name__}: {exc}"
             continue
         latency = (time.perf_counter() - start) * 1000
-        passed, score = judge(task.judge, task.expected, task.judge_config, result)
-        return Outcome(task.id, passed, score, result, latency, attempts, "")
+        try:
+            v = judge(task.judge, task.expected, task.judge_config, result, task.input)
+        except Exception as exc:  # noqa: BLE001 - a flaky judge must not crash the run
+            # The agent did answer, so keep its output, but mark the task as errored (not
+            # failed on merit) so it is visible and excluded from latency statistics.
+            err = f"judge failed: {type(exc).__name__}: {exc}"
+            return Outcome(task.id, False, 0.0, result, latency, attempts, err)
+        return Outcome(
+            task.id, v.passed, v.score, result, latency, attempts, "", v.reasoning, v.cost_usd
+        )
     return Outcome(task.id, False, 0.0, AgentResult(output=""), 0.0, attempts, last_error)
 
 
@@ -99,9 +109,11 @@ def execute_run(db: Database, run_id: int, agent: Agent | None = None) -> bool:
     with db.session() as s:
         run = s.get(Run, run_id)
         done = {
-            tid: cost
-            for tid, cost in s.execute(
-                select(TaskResult.task_id, TaskResult.cost_usd).where(TaskResult.run_id == run_id)
+            tid: cost + jcost
+            for tid, cost, jcost in s.execute(
+                select(TaskResult.task_id, TaskResult.cost_usd, TaskResult.judge_cost_usd).where(
+                    TaskResult.run_id == run_id
+                )
             )
         }
         tasks = [
@@ -124,7 +136,7 @@ def execute_run(db: Database, run_id: int, agent: Agent | None = None) -> bool:
                 if over_budget:
                     continue
                 out = fut.result()
-                spent += out.result.cost_usd
+                spent += out.result.cost_usd + out.judge_cost_usd
                 s.add(_to_row(run_id, out))
                 s.commit()  # per-result commit: a crash loses at most the in-flight tasks
                 if budget is not None and spent > budget:
@@ -157,4 +169,6 @@ def _to_row(run_id: int, out: Outcome) -> TaskResult:
         cost_usd=r.cost_usd,
         attempts=out.attempts,
         error=out.error,
+        judge_reasoning=out.judge_reasoning,
+        judge_cost_usd=out.judge_cost_usd,
     )

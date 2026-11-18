@@ -84,10 +84,35 @@ run-level idempotency) are about 100 lines, fully tested, and visible. A framewo
 exactly the part worth explaining. For larger scale I would move to Redis Streams with consumer
 groups, which give pending-entry tracking and `XAUTOCLAIM` natively.
 
+## LLM-as-judge and calibration
+
+**Why bother with a judge at all.** String rules cannot grade "explain why the sky is blue". But
+a model grading a model adds a second source of error, so the design treats the judge as
+something to be *measured*, not trusted.
+
+- **Untrusted input.** The agent's answer is delimited and the system prompt says to treat it as
+  data. A test asserts the attack text sits inside the fence; this reduces, not eliminates,
+  injection risk, which is one more reason to calibrate.
+- **Reasoning before verdict, strict JSON, temperature 0.** Auditable and reproducible. A
+  malformed reply is retried once and then surfaced as an error; the parser never guesses.
+- **Failure isolation.** If the judge API is down, the task is recorded with the agent's output
+  and a `judge failed` error and is excluded from pass-rate and latency stats. Counting it as an
+  agent failure would make a provider outage look like a regression.
+- **Calibration.** Humans label a sample (judge verdict hidden to avoid anchoring; sample
+  stable per run). We report agreement with a Wilson interval, precision/recall for "pass", and
+  Cohen's kappa. Reliability bands (>= 0.7 reliable, 0.4-0.7 caution, below that unreliable) are the
+  conventional rule of thumb, not a theorem, and fewer than 30 labels, or labels of a single
+  class, yield `insufficient_data` instead of a misleading number.
+- **Bias notes.** Many false passes flags a lenient judge; many false fails, a harsh one.
+
+Not yet handled: self-preference when judge and agent share a model family (use a different
+family for the judge), position/verbosity bias tests, and judge drift across model versions
+(re-calibrate when `AGENTPROBE_JUDGE_MODEL` changes).
+
 ## Known limitations
 - Heartbeats prove the worker *process* is alive, not that the agent call is making progress; a
   hung agent call is bounded only by the agent's own timeout (HTTP agents default to 60 s).
 - Lease expiry assumes roughly synchronized clocks between workers (deadlines are wall-clock).
 - No authentication: intended for internal or local use.
-- LLM-as-judge is not implemented yet; judges are deterministic.
+- The Anthropic client is tested against a scripted stub, not against the live API.
 - Latency numbers include only the agent call, measured with `perf_counter`.

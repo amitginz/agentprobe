@@ -20,6 +20,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     create_engine,
     event,
 )
@@ -88,7 +89,21 @@ class TaskResult(Base):
     cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     attempts: Mapped[int] = mapped_column(Integer, default=1)
     error: Mapped[str] = mapped_column(Text, default="")
+    judge_reasoning: Mapped[str] = mapped_column(Text, default="")
+    judge_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
     run: Mapped[Run] = relationship(back_populates="results")
+
+
+class HumanLabel(Base):
+    """A person's pass/fail verdict on one task of one run, used to calibrate LLM judges."""
+
+    __tablename__ = "human_labels"
+    __table_args__ = (UniqueConstraint("run_id", "task_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    run_id: Mapped[int] = mapped_column(ForeignKey("runs.id"), index=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"))
+    passed: Mapped[bool] = mapped_column(Boolean)
 
 
 class Database:

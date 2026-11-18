@@ -1,0 +1,8 @@
+{
+ "name": "open-ended-qa-v1",
+ "tasks": [
+  {"input": "Explain in one or two sentences why the sky is blue.", "expected": "Rayleigh scattering: shorter blue wavelengths scatter more than red in the atmosphere.", "judge": "llm", "judge_config": {"rubric": "Must attribute the colour to scattering of sunlight by the atmosphere, with blue scattered more strongly."}},
+  {"input": "What is the difference between a process and a thread?", "expected": "A process has its own memory space; threads within a process share memory.", "judge": "llm", "judge_config": {"rubric": "Must state that threads share an address space while processes are isolated."}},
+  {"input": "When should you use a database index, and what is its main cost?", "expected": "Use for frequent lookups/filters on a column; costs extra storage and slower writes.", "judge": "llm", "judge_config": {"rubric": "Must name faster reads and at least one cost (write overhead or storage)."}}
+ ]
+}

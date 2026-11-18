@@ -37,11 +37,13 @@ def make_run(db, agent, **kw):
 
 def test_judges():
     r = AgentResult(output="The answer is Paris.", tool_calls=["search", "calc"])
-    assert judge("contains", "paris", {}, r) == (True, 1.0)
-    assert judge("exact", "paris", {}, r)[0] is False
-    assert judge("regex", r"p\w+s", {}, r)[0] is True
-    assert judge("tool_called", "search,calc", {}, r) == (True, 1.0)
-    assert judge("tool_called", "search,web", {}, r) == (False, 0.5)
+    v = judge("contains", "paris", {}, r)
+    assert (v.passed, v.score) == (True, 1.0)
+    assert judge("exact", "paris", {}, r).passed is False
+    assert judge("regex", r"p\w+s", {}, r).passed is True
+    assert judge("tool_called", "search,calc", {}, r).passed is True
+    v = judge("tool_called", "search,web", {}, r)
+    assert (v.passed, v.score) == (False, 0.5)
     with pytest.raises(ValueError):
         judge("nope", "", {}, r)
 

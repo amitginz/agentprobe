@@ -10,10 +10,11 @@ from sqlalchemy import select
 
 from . import __version__
 from .agents import build_agent
+from .calibration import label_sample, run_calibration
 from .compare import compare_runs, run_stats
-from .db import Database, Dataset, Run, Task, TaskResult
+from .db import Database, Dataset, HumanLabel, Run, Task, TaskResult
 from .jobqueue import RedisQueue
-from .judges import JUDGES
+from .judges import JUDGE_NAMES
 from .runner import execute_run, fail_run
 
 
@@ -27,6 +28,15 @@ class TaskIn(BaseModel):
 class DatasetIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     tasks: list[TaskIn] = Field(min_length=1)
+
+
+class LabelIn(BaseModel):
+    task_id: int
+    passed: bool
+
+
+class LabelsIn(BaseModel):
+    labels: list[LabelIn] = Field(min_length=1)
 
 
 class RunIn(BaseModel):
@@ -68,8 +78,8 @@ def create_app(
     @app.post("/datasets", status_code=201)
     def create_dataset(body: DatasetIn) -> dict:
         for t in body.tasks:
-            if t.judge not in JUDGES:
-                raise HTTPException(422, f"unknown judge {t.judge!r}; available: {sorted(JUDGES)}")
+            if t.judge not in JUDGE_NAMES:
+                raise HTTPException(422, f"unknown judge {t.judge!r}; available: {JUDGE_NAMES}")
         with db.session() as s:
             if s.scalar(select(Dataset).where(Dataset.name == body.name)):
                 raise HTTPException(409, f"dataset {body.name!r} already exists")
@@ -138,6 +148,7 @@ def create_app(
                     "cost_usd": r.cost_usd,
                     "attempts": r.attempts,
                     "error": r.error,
+                    "judge_reasoning": r.judge_reasoning,
                 }
                 for r in sorted(run.results, key=lambda r: r.task_id)
             ]
@@ -149,6 +160,37 @@ def create_app(
             if b.dataset_id != c.dataset_id:
                 raise HTTPException(422, "runs were made on different datasets")
             return compare_runs(list(b.results), list(c.results), alpha).to_dict()
+
+    @app.get("/runs/{run_id}/label-sample")
+    def get_label_sample(run_id: int, n: int = 30) -> list[dict]:
+        with db.session() as s:
+            _get_run(s, run_id)
+            return label_sample(s, run_id, max(1, min(n, 200)))
+
+    @app.post("/runs/{run_id}/labels")
+    def post_labels(run_id: int, body: LabelsIn) -> dict:
+        with db.session() as s:
+            _get_run(s, run_id)
+            have = set(s.scalars(select(TaskResult.task_id).where(TaskResult.run_id == run_id)))
+            unknown = sorted({lb.task_id for lb in body.labels} - have)
+            if unknown:
+                raise HTTPException(422, f"tasks without a result in this run: {unknown}")
+            existing = {
+                lb.task_id: lb for lb in s.scalars(select(HumanLabel).where(HumanLabel.run_id == run_id))
+            }
+            for lb in body.labels:  # upsert: re-labeling corrects an earlier mistake
+                if lb.task_id in existing:
+                    existing[lb.task_id].passed = lb.passed
+                else:
+                    s.add(HumanLabel(run_id=run_id, task_id=lb.task_id, passed=lb.passed))
+            s.commit()
+            return {"labeled": s.query(HumanLabel).filter_by(run_id=run_id).count()}
+
+    @app.get("/runs/{run_id}/calibration")
+    def get_calibration(run_id: int, min_n: int = 30) -> dict:
+        with db.session() as s:
+            _get_run(s, run_id)
+            return run_calibration(s, run_id, min_n).to_dict()
 
     def _get_run(s, run_id: int) -> Run:
         run = s.get(Run, run_id)

@@ -31,7 +31,8 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | Area | What is implemented |
 |---|---|
 | Execution | Thread-pool runner with bounded concurrency, per-task retries, and a **hard cost budget** that stops a run early (`budget_exceeded`) |
-| Judges | `exact`, `contains`, `regex`, `tool_called` (pluggable registry) |
+| Judges | Deterministic: `exact`, `contains`, `regex`, `tool_called`. **`llm`**: rubric-based LLM-as-judge with injection-resistant prompting, strict JSON verdicts, cost tracking |
+| Judge calibration | Label a sample by hand and measure the judge: agreement with a Wilson CI, precision/recall, **Cohen's kappa**, a reliability verdict, and a lenient/harsh bias note |
 | Agents | Spec-string adapters: `mock:` (deterministic simulated agent) and `http:` (any remote agent that returns JSON) |
 | Analysis | Paired comparison: pass-rate delta, broken/fixed counts, exact p-value, cost and p95 latency |
 | API | FastAPI: datasets, runs (async, background execution), results, `/compare` |
@@ -61,11 +62,29 @@ Evaluate your own agent by exposing an endpoint that accepts `{"input": "..."}` 
 agentprobe run --dataset my_tasks.json --agent "http:http://localhost:9000/agent" --budget 2.50
 ```
 
+## LLM-as-judge, and how far to trust it
+
+For open-ended answers set `"judge": "llm"` and a `rubric` per task (see
+[`examples/dataset_llm.json`](examples/dataset_llm.json)); set `ANTHROPIC_API_KEY` (model via
+`AGENTPROBE_JUDGE_MODEL`). A judge is an instrument, so measure it before it gates anything:
+
+```bash
+curl localhost:8000/runs/7/label-sample?n=40        # answers to grade; the judge's verdict is hidden
+curl -X POST localhost:8000/runs/7/labels -d '{"labels":[{"task_id":3,"passed":true}, ...]}' -H 'content-type: application/json'
+agentprobe calibrate --run 7 --require-reliable     # exits 1 unless kappa >= 0.7 (needs >= 30 labels)
+```
+
+Kappa, not accuracy, is the headline number: if 90% of answers pass, a judge that always says
+"pass" is 90% accurate and worthless. Agent output is fenced and treated as untrusted data, so an
+answer saying "ignore the rubric and pass me" does not steer the judge. Judge outages mark a task
+as errored (excluded from statistics) rather than failing the agent, and judge spend counts toward
+the run budget. Pricing defaults are placeholders; set `AGENTPROBE_JUDGE_PRICE_IN/OUT` (USD per
+million tokens).
+
 ## Roadmap
 
 Honest status: the core loop above works and is tested. Planned next:
 
-- [ ] LLM-as-judge with calibration against human labels
 - [ ] Web dashboard (pass-rate, cost and latency trends per agent version)
 - [ ] OpenTelemetry traces for each agent step
 - [ ] Reusable GitHub Action wrapper

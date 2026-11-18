@@ -68,6 +68,33 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 1 if args.fail_on_regression and cmp.verdict == "regression" else 0
 
 
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    from .calibration import run_calibration
+    from .db import HumanLabel
+
+    db = Database(args.db)
+    with db.session() as s:
+        if s.get(Run, args.run) is None:
+            print("run not found", file=sys.stderr)
+            return 2
+        if args.labels:
+            with open(args.labels) as fh:
+                labels = json.load(fh)  # [{"task_id": 1, "passed": true}, ...]
+            existing = {
+                lb.task_id: lb for lb in s.scalars(select(HumanLabel).where(HumanLabel.run_id == args.run))
+            }
+            for item in labels:
+                if item["task_id"] in existing:
+                    existing[item["task_id"]].passed = bool(item["passed"])
+                else:
+                    s.add(HumanLabel(run_id=args.run, task_id=item["task_id"], passed=bool(item["passed"])))
+            s.commit()
+        cal = run_calibration(s, args.run, args.min_n)
+    print(json.dumps(cal.to_dict(), indent=2))
+    print(f"\n{cal.reliability.upper()}: kappa={cal.kappa:.2f}, agreement={cal.accuracy:.1%} on {cal.n} labels. {cal.note}")
+    return 1 if args.require_reliable and cal.reliability != "reliable" else 0
+
+
 def cmd_worker(args: argparse.Namespace) -> int:
     import logging
     import signal
@@ -104,6 +131,13 @@ def main(argv: list[str] | None = None) -> int:
     p_cmp.add_argument("--alpha", type=float, default=0.05)
     p_cmp.add_argument("--fail-on-regression", action="store_true")
     p_cmp.set_defaults(func=cmd_compare)
+
+    p_cal = sub.add_parser("calibrate", help="measure an LLM judge's agreement with human labels")
+    p_cal.add_argument("--run", type=int, required=True)
+    p_cal.add_argument("--labels", help="JSON file of [{task_id, passed}] to import first")
+    p_cal.add_argument("--min-n", type=int, default=30)
+    p_cal.add_argument("--require-reliable", action="store_true", help="exit 1 unless the judge is reliable")
+    p_cal.set_defaults(func=cmd_calibrate)
 
     p_wk = sub.add_parser("worker", help="run a queue worker that executes enqueued runs")
     p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

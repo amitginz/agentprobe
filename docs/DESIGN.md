@@ -109,6 +109,28 @@ Not yet handled: self-preference when judge and agent share a model family (use 
 family for the judge), position/verbosity bias tests, and judge drift across model versions
 (re-calibrate when `AGENTPROBE_JUDGE_MODEL` changes).
 
+## Dashboard
+
+A single static HTML file served by the API at `/`, with no build step, framework or CDN: it
+works offline, ships inside the Python package, and charts are hand-rolled inline SVG. For an
+internal tool whose job is to answer "did this change break something?", that removes a whole
+toolchain (and a supply-chain surface) for little loss.
+
+- **Untrusted content.** Agent outputs, dataset text and run labels are attacker-influenced
+  (an agent can emit `<img onerror=...>`). Every dynamic value goes through one `esc()` helper,
+  a test scans every template interpolation for unescaped user fields, and I verified in a real
+  browser that a malicious dataset and label render as inert text.
+- **The regression view is the point.** A banner states the verdict and the p-value, and the page
+  lists the individual tasks that flipped with both outputs side by side, because a number tells
+  you *that* something broke and the diff tells you *what*.
+- **Charts flag drops, not noise.** A point turns red only if pass rate fell more than 5 points
+  versus the previous run; significance testing stays in the compare view where it is computed
+  on paired tasks.
+- **Live updates by polling** every 2.5 s, and only while a run is pending or running.
+
+Limitations: no authentication, no pagination beyond the latest 60 runs, and the dataset list is
+loaded once at page load (reload to see a newly created dataset).
+
 ## Known limitations
 - Heartbeats prove the worker *process* is alive, not that the agent call is making progress; a
   hung agent call is bounded only by the agent's own timeout (HTTP agents default to 60 s).

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentProbe</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --border: #e3e6eb; --text: #1b2330; --muted: #657084;
+    --accent: #2f5bea; --good: #16794c; --good-bg: #e3f5ec; --bad: #b42318; --bad-bg: #fde8e6;
+    --warn: #8a5a00; --warn-bg: #fff3d6; --neutral-bg: #eceff3; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f131a; --surface: #171c25; --border: #272e3a; --text: #e6e9ef; --muted: #8b95a7;
+      --accent: #7c9cff; --good: #4cc38a; --good-bg: #12301f; --bad: #ff7b6e; --bad-bg: #3a1a18;
+      --warn: #f0b84a; --warn-bg: #3a2c0d; --neutral-bg: #232a36;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 24px;
+           background: var(--surface); border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+  header .spacer { flex: 1; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  select, button { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+                   border-radius: 8px; padding: 6px 12px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, select:focus-visible, tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+          background: var(--neutral-bg); color: var(--muted); white-space: nowrap; }
+  .pill.good { background: var(--good-bg); color: var(--good); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .grid { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 16px; }
+  .charts { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 0 8px; }
+  .kpi .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .kpi .sub { font-size: 12px; color: var(--muted); min-height: 18px; }
+  .delta.good { color: var(--good); } .delta.bad { color: var(--bad); }
+  svg.chart { width: 100%; height: auto; display: block; }
+  svg.chart text { fill: var(--muted); font-size: 10px; }
+  svg.chart .grid-line { stroke: var(--border); stroke-width: 1; }
+  svg.chart .line { fill: none; stroke: var(--accent); stroke-width: 2; }
+  svg.chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+  svg.chart .dot.bad { fill: var(--bad); }
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar h2 { margin: 0; flex: 1; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tbody tr.clickable { cursor: pointer; }
+  tbody tr.clickable:hover { background: var(--neutral-bg); }
+  tbody tr.open { background: var(--neutral-bg); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .muted { color: var(--muted); }
+  .bar { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: var(--neutral-bg); vertical-align: middle; margin-right: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .banner { border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; font-weight: 600; }
+  .banner.good { background: var(--good-bg); color: var(--good); }
+  .banner.bad { background: var(--bad-bg); color: var(--bad); }
+  .banner.neutral { background: var(--neutral-bg); }
+  .banner small { display: block; font-weight: 400; margin-top: 2px; opacity: .9; }
+  .out { white-space: pre-wrap; word-break: break-word; max-height: 120px; overflow: auto; font-family: var(--mono); font-size: 12px; }
+  .empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+  #detail { margin-top: 16px; }
+  #error { display: none; margin-bottom: 16px; }
+  .tiles { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tiles div b { display: block; font-size: 20px; }
+  .tiles div span { font-size: 12px; color: var(--muted); }
+  label.inline { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>AgentProbe</h1>
+  <label class="muted" for="dataset">Dataset</label>
+  <select id="dataset" aria-label="Dataset"></select>
+  <span class="spacer"></span>
+  <span id="health" class="pill">connecting…</span>
+</header>
+<main>
+  <div id="error" class="banner bad" role="alert"></div>
+  <section class="grid kpis" id="kpis" aria-label="Summary"></section>
+  <section class="grid charts" id="charts" aria-label="Trends"></section>
+  <section class="card">
+    <div class="toolbar">
+      <h2>Runs</h2>
+      <span class="muted" id="hint">Tick two runs to compare them, or click a run for details.</span>
+      <button class="primary" id="compare-btn" disabled>Compare selected</button>
+    </div>
+    <div class="table-wrap" id="runs"></div>
+  </section>
+  <section id="detail" aria-live="polite"></section>
+</main>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+// Everything that comes from agents or datasets is untrusted: always escape before inserting.
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (v, d = 1) => (v * 100).toFixed(d) + "%";
+const usd = (v) => (v >= 0.01 ? "$" + v.toFixed(2) : v >= 0.0001 ? "$" + v.toFixed(4) : "$" + v.toFixed(6));
+const ms = (v) => (v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms");
+const DONE = new Set(["completed", "budget_exceeded"]);
+
+const state = { datasets: [], dsId: null, runs: [], selected: [], open: null, view: null };
+
+async function api(path) {
+  const r = await fetch(path);
+  if (!r.ok) {
+    let msg = r.status + " " + r.statusText;
+    try { msg = (await r.json()).detail || msg; } catch (_) {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+function showError(e) {
+  const el = $("#error");
+  el.style.display = e ? "block" : "none";
+  el.textContent = e ? String(e.message || e) : "";
+}
+
+function statusPill(s) {
+  const cls = s === "completed" ? "good" : s === "failed" ? "bad" : s === "budget_exceeded" ? "warn" : "";
+  return `<span class="pill ${cls}">${esc(s.replace("_", " "))}</span>`;
+}
+
+/* ---------- charts: dependency-free inline SVG ---------- */
+function lineChart(title, points, fmt, domain) {
+  if (points.length === 0) return `<div class="card"><h2>${esc(title)}</h2><div class="empty">No completed runs yet</div></div>`;
+  const W = 360, H = 160, L = 62, R = 12, T = 10, B = 24;
+  let [lo, hi] = domain || [Math.min(...points.map((p) => p.v)), Math.max(...points.map((p) => p.v))];
+  if (hi === lo) { const p = Math.abs(hi) * 0.1 || 1; hi += p; lo = Math.max(0, lo - p); }  // flat or single-point series
+  if (!domain) { const pad = (hi - lo) * 0.15; lo = Math.max(0, lo - pad); hi += pad; }
+  const x = (i) => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
+  const y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const ticks = [lo, (lo + hi) / 2, hi];
+  const grid = ticks.map((t) => `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}"/><text x="${L - 6}" y="${y(t) + 3}" text-anchor="end">${esc(fmt(t))}</text>`).join("");
+  const path = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const dots = points.map((p, i) => `<circle class="dot ${p.bad ? "bad" : ""}" cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="4"><title>Run #${p.id}${p.label ? " (" + esc(p.label) + ")" : ""}: ${esc(fmt(p.v))}</title></circle>`).join("");
+  const first = points[0], last = points[points.length - 1];
+  const xl = `<text x="${x(0)}" y="${H - 6}" text-anchor="start">#${first.id}</text>` + (points.length > 1 ? `<text x="${x(points.length - 1)}" y="${H - 6}" text-anchor="end">#${last.id}</text>` : "");
+  return `<div class="card"><h2>${esc(title)}</h2><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)} over runs">${grid}<path class="line" d="${path}"/>${dots}${xl}</svg></div>`;
+}
+
+/* ---------- rendering ---------- */
+function finished() { return state.runs.filter((r) => DONE.has(r.status) && r.stats.n > 0); }
+
+function renderKpis() {
+  const done = finished(), last = done[done.length - 1], prev = done[done.length - 2];
+  const spend = state.runs.reduce((a, r) => a + r.stats.total_cost_usd, 0);
+  let delta = "";
+  if (last && prev) {
+    const d = last.stats.pass_rate - prev.stats.pass_rate;
+    const cls = d < -0.001 ? "bad" : d > 0.001 ? "good" : "";
+    delta = `<span class="delta ${cls}">${d >= 0 ? "▲" : "▼"} ${Math.abs(d * 100).toFixed(1)} pts</span> vs #${prev.id}`;
+  }
+  const tile = (name, value, sub) => `<div class="card kpi"><h2>${name}</h2><div class="value">${value}</div><div class="sub">${sub || ""}</div></div>`;
+  $("#kpis").innerHTML =
+    tile("Latest pass rate", last ? pct(last.stats.pass_rate) : "–", last ? `run #${last.id} · ${delta}` : "no completed runs") +
+    tile("Runs", state.runs.length, `${state.runs.filter((r) => !DONE.has(r.status) && r.status !== "failed").length} in progress`) +
+    tile("Agent spend", usd(spend), "all runs on this dataset") +
+    tile("Latest p95 latency", last ? ms(last.stats.p95_latency_ms) : "–", last ? `mean ${ms(last.stats.mean_latency_ms)}` : "");
+}
+
+function renderCharts() {
+  const done = finished();
+  const pts = done.map((r, i) => ({ id: r.id, label: r.label, v: r.stats.pass_rate,
+    bad: i > 0 && r.stats.pass_rate < done[i - 1].stats.pass_rate - 0.05 }));
+  $("#charts").innerHTML =
+    lineChart("Pass rate (red = dropped over 5 pts)", pts, (v) => pct(v, 0), [0, 1]) +
+    lineChart("Mean cost per task", done.map((r) => ({ id: r.id, label: r.label, v: r.stats.mean_cost_usd })), (v) => usd(v)) +
+    lineChart("p95 latency", done.map((r) => ({ id: r.id, label: r.label, v: r.stats.p95_latency_ms })), (v) => ms(v));
+}
+
+function renderRuns() {
+  if (!state.runs.length) {
+    $("#runs").innerHTML = `<div class="empty">No runs for this dataset yet.<br><span class="mono">agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.9"</span></div>`;
+  } else {
+    const rows = [...state.runs].reverse().map((r) => {
+      const st = r.stats, checked = state.selected.includes(r.id) ? "checked" : "";
+      return `<tr class="clickable ${state.open === r.id ? "open" : ""}" data-run="${r.id}" tabindex="0">
+        <td><input type="checkbox" data-sel="${r.id}" ${checked} aria-label="Select run ${r.id} for comparison"></td>
+        <td class="mono">#${r.id}</td>
+        <td>${esc(r.label || "—")}<div class="mono muted">${esc(r.agent)}</div></td>
+        <td>${statusPill(r.status)}</td>
+        <td class="num">${st.n ? `<span class="bar"><i style="width:${(st.pass_rate * 100).toFixed(0)}%"></i></span>${pct(st.pass_rate)}` : "–"}</td>
+        <td class="num">${st.n}/${r.tasks_total}${st.errors ? ` <span class="pill bad" title="tasks with errors">${st.errors} err</span>` : ""}</td>
+        <td class="num">${st.n ? usd(st.mean_cost_usd) : "–"}</td>
+        <td class="num">${st.n ? ms(st.p95_latency_ms) : "–"}</td></tr>`;
+    }).join("");
+    $("#runs").innerHTML = `<table><thead><tr><th></th><th>Run</th><th>Label / agent</th><th>Status</th><th class="num">Pass rate</th><th class="num">Tasks</th><th class="num">Cost/task</th><th class="num">p95</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  $("#compare-btn").disabled = state.selected.length !== 2;
+}
+
+function renderAll() { renderKpis(); renderCharts(); renderRuns(); }
+
+/* ---------- detail views ---------- */
+async function openRun(id) {
+  state.open = id; state.view = "run"; renderRuns();
+  const [run, results] = await Promise.all([api(`/runs/${id}`), api(`/runs/${id}/results`)]);
+  if (state.open !== id) return;
+  const st = run.stats, prevRun = [...state.runs].reverse().find((r) => r.id < id);
+  const rowsFor = (onlyFail) => results.filter((r) => !onlyFail || !r.passed || r.error).map((r) => `<tr>
+      <td class="mono">${r.task_id}</td>
+      <td>${r.passed ? '<span class="pill good">pass</span>' : r.error ? '<span class="pill warn">error</span>' : '<span class="pill bad">fail</span>'}</td>
+      <td>${esc(r.input)}<div class="muted mono">expected: ${esc(r.expected)}</div></td>
+      <td><div class="out">${esc(r.output)}</div>${r.judge_reasoning ? `<div class="muted">judge: ${esc(r.judge_reasoning)}</div>` : ""}${r.error ? `<div class="mono" style="color:var(--bad)">${esc(r.error)}</div>` : ""}</td>
+      <td class="num">${ms(r.latency_ms)}</td></tr>`).join("") || `<tr><td colspan="5" class="empty">Nothing to show.</td></tr>`;
+  $("#detail").innerHTML = `<div class="card">
+    <div class="toolbar"><h2>Run #${run.id} ${esc(run.label)} ${statusPill(run.status)}</h2>
+      <label class="inline"><input type="checkbox" id="only-fail" checked> failures only</label>
+      ${prevRun ? `<button id="vs-prev">Compare with #${prevRun.id}</button>` : ""}</div>
+    ${run.error ? `<div class="banner bad">${esc(run.error)}</div>` : ""}
+    <div class="muted mono" style="margin-bottom:12px">${esc(run.agent)}</div>
+    <div class="tiles">
+      <div><b>${pct(st.pass_rate)}</b><span>pass rate (${st.n}/${run.tasks_total} tasks)</span></div>
+      <div><b>${usd(st.total_cost_usd)}</b><span>total agent cost</span></div>
+      <div><b>${ms(st.mean_latency_ms)}</b><span>mean latency</span></div>
+      <div><b>${ms(st.p95_latency_ms)}</b><span>p95 latency</span></div></div>
+    <div class="table-wrap"><table><thead><tr><th>Task</th><th>Result</th><th>Input</th><th>Output</th><th class="num">Latency</th></tr></thead><tbody id="res-body">${rowsFor(true)}</tbody></table></div></div>`;
+  $("#only-fail").onchange = (e) => { $("#res-body").innerHTML = rowsFor(e.target.checked); };
+  if (prevRun) $("#vs-prev").onclick = () => openCompare(prevRun.id, id);
+  $("#detail").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function openCompare(a, b) {
+  state.open = null; state.view = "compare"; renderRuns();
+  const c = await api(`/compare?baseline=${a}&candidate=${b}&details=true`);
+  const cls = { regression: "bad", improvement: "good", no_significant_change: "neutral" }[c.verdict];
+  const title = { regression: "Regression", improvement: "Improvement", no_significant_change: "No significant change" }[c.verdict];
+  const d = c.pass_rate_delta * 100;
+  const flipRows = (list) => list.map((t) => `<tr><td class="mono">${t.task_id}</td><td>${esc(t.input)}<div class="muted mono">expected: ${esc(t.expected)}</div></td>
+      <td><div class="out">${esc(t.baseline_output)}</div></td>
+      <td><div class="out">${esc(t.candidate_output)}</div>${t.candidate_reasoning ? `<div class="muted">judge: ${esc(t.candidate_reasoning)}</div>` : ""}</td></tr>`).join("");
+  const section = (name, list) => list.length ? `<h2 style="margin-top:16px">${name} (${list.length})</h2><div class="table-wrap"><table><thead><tr><th>Task</th><th>Input</th><th>#${a} output</th><th>#${b} output</th></tr></thead><tbody>${flipRows(list)}</tbody></table></div>` : "";
+  const costDelta = c.baseline.mean_cost_usd ? ((c.candidate.mean_cost_usd / c.baseline.mean_cost_usd - 1) * 100) : 0;
+  $("#detail").innerHTML = `<div class="card">
+    <div class="banner ${cls}">${title}: pass rate ${pct(c.baseline.pass_rate)} → ${pct(c.candidate.pass_rate)} (${d >= 0 ? "+" : ""}${d.toFixed(1)} pts)
+      <small>#${a} vs #${b} on ${c.common_tasks} shared tasks · ${c.broken} broke, ${c.fixed} fixed · exact McNemar p = ${c.p_value.toFixed(4)} ${c.significant ? "(significant at 0.05)" : "(not significant at 0.05)"}</small></div>
+    <div class="tiles">
+      <div><b>${usd(c.candidate.mean_cost_usd)}</b><span>cost/task (${costDelta >= 0 ? "+" : ""}${costDelta.toFixed(0)}% vs baseline)</span></div>
+      <div><b>${ms(c.candidate.p95_latency_ms)}</b><span>p95 latency (baseline ${ms(c.baseline.p95_latency_ms)})</span></div>
+      <div><b>${c.candidate.errors}</b><span>errored tasks (baseline ${c.baseline.errors})</span></div></div>
+    ${section("Broken by the candidate", c.broken_tasks)}${section("Fixed by the candidate", c.fixed_tasks)}</div>`;
+  $("#detail").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ---------- data loading ---------- */
+async function loadRuns() {
+  if (state.dsId == null) { state.runs = []; renderAll(); return; }
+  state.runs = await api(`/runs?dataset_id=${state.dsId}&limit=60`);
+  renderAll();
+}
+async function loadHealth() {
+  const el = $("#health");
+  try {
+    const h = await api("/health");
+    const q = h.queue && typeof h.queue === "object" ? ` · ${h.queue.pending} queued, ${h.queue.processing} running` : "";
+    el.textContent = `${h.execution}${q}`; el.className = "pill " + (h.status === "ok" ? "good" : "warn");
+  } catch (_) { el.textContent = "offline"; el.className = "pill bad"; }
+}
+
+$("#runs").addEventListener("click", (e) => {
+  const sel = e.target.closest("[data-sel]");
+  if (sel) {
+    const id = Number(sel.dataset.sel);
+    state.selected = sel.checked ? [...state.selected, id].slice(-2) : state.selected.filter((x) => x !== id);
+    renderRuns();
+    return;
+  }
+  const tr = e.target.closest("tr[data-run]");
+  if (tr) openRun(Number(tr.dataset.run)).catch(showError);
+});
+$("#runs").addEventListener("keydown", (e) => {
+  const tr = e.target.closest("tr[data-run]");
+  if (tr && (e.key === "Enter" || e.key === " ") && e.target === tr) { e.preventDefault(); openRun(Number(tr.dataset.run)).catch(showError); }
+});
+$("#compare-btn").onclick = () => {
+  const [a, b] = [...state.selected].sort((x, y) => x - y);
+  openCompare(a, b).catch(showError);
+};
+$("#dataset").onchange = (e) => { state.dsId = Number(e.target.value); state.selected = []; state.open = null; $("#detail").innerHTML = ""; loadRuns().catch(showError); };
+
+(async function init() {
+  try {
+    state.datasets = await api("/datasets");
+    $("#dataset").innerHTML = state.datasets.map((d) => `<option value="${d.id}">${esc(d.name)} (${d.tasks} tasks)</option>`).join("");
+    if (!state.datasets.length) {
+      $("#runs").innerHTML = `<div class="empty">No datasets yet. Create one with <span class="mono">POST /datasets</span> or run the CLI.</div>`;
+      $("#kpis").innerHTML = ""; $("#charts").innerHTML = "";
+    } else {
+      state.dsId = state.datasets[state.datasets.length - 1].id;
+      $("#dataset").value = state.dsId;
+      await loadRuns();
+    }
+  } catch (e) { showError(e); }
+  loadHealth();
+  setInterval(async () => {   // keep live while runs are in flight, otherwise stay quiet
+    try {
+      loadHealth();
+      if (state.runs.some((r) => !DONE.has(r.status) && r.status !== "failed")) await loadRuns();
+    } catch (e) { showError(e); }
+  }, 2500);
+})();
+</script>
+</body>
+</html>

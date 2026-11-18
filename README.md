@@ -36,9 +36,16 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | Agents | Spec-string adapters: `mock:` (deterministic simulated agent) and `http:` (any remote agent that returns JSON) |
 | Analysis | Paired comparison: pass-rate delta, broken/fixed counts, exact p-value, cost and p95 latency |
 | API | FastAPI: datasets, runs (async, background execution), results, `/compare` |
+| Dashboard | Zero-build web UI at `/`: KPI tiles, pass-rate / cost / p95 trend charts (inline SVG), run history, run drill-down, and a side-by-side **regression view** listing exactly which tasks a change broke or fixed; auto-refreshes while runs are in flight |
 | Queue | **Redis job queue with leases and heartbeats**: at-least-once delivery, crash recovery that resumes unfinished runs, poison-job protection, horizontally scalable `agentprobe worker` processes |
 | Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL` |
 | Ops | Dockerfile, docker-compose with Postgres, GitHub Actions CI with an agent-quality gate |
+
+Try the dashboard with seeded history (a bad model swap is hidden in there for you to find):
+
+```bash
+python examples/seed_demo.py && uvicorn agentprobe.api:app_factory --factory   # http://localhost:8000
+```
 
 Run the service:
 
@@ -85,7 +92,6 @@ million tokens).
 
 Honest status: the core loop above works and is tested. Planned next:
 
-- [ ] Web dashboard (pass-rate, cost and latency trends per agent version)
 - [ ] OpenTelemetry traces for each agent step
 - [ ] Reusable GitHub Action wrapper
 - [ ] Evaluate docs-rag-mcp as the first real agent under test

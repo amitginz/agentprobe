@@ -3,13 +3,14 @@
 An agent is anything with `run(task_input) -> AgentResult`. Agents are selected by a
 spec string so a run is fully described by plain text and can be reproduced later:
 
-    mock:accuracy=0.9,seed=1      deterministic simulated agent (demos, tests, CI)
+    mock:accuracy=0.9,seed=1,latency=25   deterministic simulated agent (demos, tests, CI)
     http:https://host/path        POSTs {"input": ...}, expects AgentResult-shaped JSON
 """
 
 from __future__ import annotations
 
 import hashlib
+import time
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -40,18 +41,23 @@ class MockAgent:
     PRICE_IN = 3e-6
     PRICE_OUT = 15e-6
 
-    def __init__(self, accuracy: float = 0.8, seed: int = 0, tools: str = "search") -> None:
+    def __init__(
+        self, accuracy: float = 0.8, seed: int = 0, tools: str = "search", latency_ms: float = 0.0
+    ) -> None:
         if not 0.0 <= accuracy <= 1.0:
             raise ValueError("accuracy must be between 0 and 1")
         self.accuracy = accuracy
         self.seed = seed
         self.tools = [t for t in tools.split("|") if t]
+        self.latency_ms = latency_ms
 
     def _roll(self, task_input: str) -> float:
         digest = hashlib.sha256(f"{self.seed}:{task_input}".encode()).digest()
         return int.from_bytes(digest[:8], "big") / 2**64
 
     def run(self, task_input: str, expected: str = "") -> AgentResult:
+        if self.latency_ms:  # simulated, deterministic jitter between 0.5x and 1.5x
+            time.sleep(self.latency_ms * (0.5 + self._roll("latency:" + task_input)) / 1000)
         correct = self._roll(task_input) < self.accuracy
         output = expected if correct else "???"
         in_tok = max(1, len(task_input) // 4)
@@ -93,6 +99,7 @@ def build_agent(spec: str) -> Agent:
             accuracy=float(params.get("accuracy", 0.8)),
             seed=int(params.get("seed", 0)),
             tools=params.get("tools", "search"),
+            latency_ms=float(params.get("latency", 0)),
         )
     if kind == "http":
         if not rest:

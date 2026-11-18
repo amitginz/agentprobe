@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: amitginz/agentprobe@main   # pin a tag or SHA once you cut a release
+      - uses: amitginz/agentprobe@v0.1.0
         with:
           dataset: evals/support-bot.json
           baseline-agent: "http:https://staging.example.com/agent"          # what is deployed

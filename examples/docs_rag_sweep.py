@@ -57,4 +57,4 @@ for dist, rmin in itertools.product(DISTANCES, RERANK_MINS):
 
 print(f"{'distance':>8} {'rerank_min':>10} {'in-scope':>9} {'refused':>8} {'pass':>7}")
 for acc, dist, rmin, io, i_n, oo, o_n in sorted(rows, key=lambda r: -r[0]):
-    print(f"{dist:>8} {str(rmin):>10} {io:>4}/{i_n:<4} {oo:>3}/{o_n:<4} {acc:>7.1%}")
+    print(f"{dist:>8} {rmin!s:>10} {io:>4}/{i_n:<4} {oo:>3}/{o_n:<4} {acc:>7.1%}")

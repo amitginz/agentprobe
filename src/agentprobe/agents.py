@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 import httpx
+from opentelemetry import propagate
 
 
 @dataclass
@@ -79,7 +80,9 @@ class HTTPAgent:
         self.timeout = timeout
 
     def run(self, task_input: str, expected: str = "") -> AgentResult:
-        resp = httpx.post(self.url, json={"input": task_input}, timeout=self.timeout)
+        headers: dict[str, str] = {}
+        propagate.inject(headers)  # lets an instrumented agent join this trace via `traceparent`
+        resp = httpx.post(self.url, json={"input": task_input}, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         data = resp.json()
         return AgentResult(

@@ -19,6 +19,7 @@ from sqlalchemy import select
 
 from .compare import Comparison, compare_runs
 from .db import Database, Run, Task, TaskResult
+from .telemetry import tracer
 
 MAX_ERROR_RATE = 0.2
 OK_STATUSES = ("completed", "budget_exceeded")
@@ -88,15 +89,17 @@ def run_ci(
 
     dataset_id = _load_dataset(db, dataset_path)
     ids = {}
-    for label, agent in (("baseline", baseline_agent), ("candidate", candidate_agent)):
-        with db.session() as s:
-            run = Run(
-                dataset_id=dataset_id, agent=agent, label=label, concurrency=concurrency, budget_usd=budget_usd
-            )
-            s.add(run)
-            s.commit()
-            ids[label] = run.id
-        execute_run(db, ids[label])  # sequential: the two runs must not compete for the same endpoint
+    # One trace for the whole gate: ci -> (baseline run, candidate run) -> tasks -> agent/judge calls.
+    with tracer().start_as_current_span("agentprobe.ci", attributes={"agentprobe.alpha": alpha}):
+        for label, agent in (("baseline", baseline_agent), ("candidate", candidate_agent)):
+            with db.session() as s:
+                run = Run(
+                    dataset_id=dataset_id, agent=agent, label=label, concurrency=concurrency, budget_usd=budget_usd
+                )
+                s.add(run)
+                s.commit()
+                ids[label] = run.id
+            execute_run(db, ids[label])  # sequential: the two runs must not compete for one endpoint
 
     with db.session() as s:
         b, c = s.get(Run, ids["baseline"]), s.get(Run, ids["candidate"])

@@ -68,6 +68,7 @@ class Run(Base):
     retries: Mapped[int] = mapped_column(Integer, default=1)
     budget_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     error: Mapped[str] = mapped_column(Text, default="")
+    trace_context: Mapped[str] = mapped_column(Text, default="")  # W3C carrier from whoever created the run
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     results: Mapped[list[TaskResult]] = relationship(back_populates="run", cascade="all, delete")

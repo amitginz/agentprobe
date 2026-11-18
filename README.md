@@ -39,6 +39,7 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | Dashboard | Zero-build web UI at `/`: KPI tiles, pass-rate / cost / p95 trend charts (inline SVG), run history, run drill-down, and a side-by-side **regression view** listing exactly which tasks a change broke or fixed; auto-refreshes while runs are in flight |
 | Queue | **Redis job queue with leases and heartbeats**: at-least-once delivery, crash recovery that resumes unfinished runs, poison-job protection, horizontally scalable `agentprobe worker` processes |
 | Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL` |
+| Observability | **OpenTelemetry** traces and metrics: one trace per run (`create_run` → `run` → `task` → `agent.call` / `judge.evaluate`), context carried API → queue → worker and into HTTP agents, OTLP export, Jaeger in docker-compose |
 | Ops | Dockerfile, docker-compose (API + workers + Redis + Postgres), **reusable GitHub Action** that gates PRs on agent quality |
 
 Try the dashboard with seeded history (a bad model swap is hidden in there for you to find):
@@ -111,6 +112,40 @@ Design choices worth knowing:
 This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml). Honest status: the action's
 shell step and the CLI are tested locally (including simulating the step exactly as the runner
 executes it), but the action has not yet run on GitHub-hosted runners.
+
+## Observability (OpenTelemetry)
+
+Every run is traceable. Point AgentProbe at any OTLP/HTTP collector and each evaluation becomes
+a trace you can open in Jaeger, Tempo, Honeycomb or Datadog:
+
+```bash
+pip install "agentprobe[otel]"
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 agentprobe ci --dataset ... --baseline-agent ... --candidate-agent ...
+docker compose up   # API + workers + Jaeger UI on http://localhost:16686
+```
+
+```text
+agentprobe.create_run        API request
+└── agentprobe.run           one per execution (a resumed run gets a new span in the same trace)
+    └── agentprobe.task      one per task, correctly parented across the thread pool
+        ├── agent.call       one per attempt; failures carry the exception and ERROR status
+        └── judge.evaluate
+```
+
+- **Context survives process boundaries.** The W3C trace context is stored on the run row, so a
+  worker that picks the job up from Redis (even minutes later, after a crash and re-delivery)
+  continues the API request's trace. For `http:` agents it also sends a `traceparent` header, so an
+  instrumented agent under test shows up as child spans of the evaluation.
+- **Metrics:** `agentprobe.tasks` (by judge / passed / errored), `agentprobe.agent.latency`
+  histogram and `agentprobe.cost`.
+- **Privacy by default.** Task inputs, agent outputs and judge reasoning are never put on spans,
+  only sizes, token counts, costs, verdicts and timings, and an agent spec is reduced to its kind
+  (`http`), since spec URLs can embed credentials. A test asserts neither leaks.
+- **Zero cost when off.** Only the tiny `opentelemetry-api` is a core dependency (a no-op until an
+  SDK is configured); exporting needs the `otel` extra.
+- Verified end to end over the real OTLP wire format: a test runs the CLI in a separate process
+  against a local collector, decodes the protobuf, and checks that 40 tasks x 2 runs arrive as a
+  single connected trace plus metrics. Jaeger itself was not run here (no Docker available).
 
 ## Case study: evaluating a real RAG agent
 
@@ -208,7 +243,6 @@ million tokens).
 
 Honest status: the core loop above works and is tested. Planned next:
 
-- [ ] OpenTelemetry traces for each agent step
 - [ ] Grow the docs-rag datasets (25-37 questions cannot resolve small effects): the reranker gate result is inconclusive
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and the trade-offs behind it.

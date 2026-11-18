@@ -18,6 +18,7 @@ from .db import Database, Dataset, HumanLabel, Run, Task, TaskResult
 from .jobqueue import RedisQueue
 from .judges import JUDGE_NAMES
 from .runner import execute_run, fail_run
+from .telemetry import agent_kind, capture_context, setup_telemetry, tracer
 
 DASHBOARD_HTML = Path(__file__).parent / "dashboard" / "index.html"
 
@@ -62,6 +63,7 @@ def create_app(
     Execution mode: `run_inline` runs synchronously (tests); a `queue` hands runs to separate
     worker processes; with neither, runs execute in a background task of this process.
     """
+    setup_telemetry()  # no-op unless OTEL_EXPORTER_OTLP_ENDPOINT / AGENTPROBE_OTEL_CONSOLE is set
     db = Database(database_url)
     app = FastAPI(title="AgentProbe", version=__version__)
 
@@ -102,6 +104,15 @@ def create_app(
 
     @app.post("/runs", status_code=202)
     def create_run(body: RunIn, background: BackgroundTasks) -> dict:
+        with tracer().start_as_current_span(
+            "agentprobe.create_run",
+            attributes={"agentprobe.dataset.id": body.dataset_id, "agentprobe.agent.kind": agent_kind(body.agent)},
+        ):
+            # The trace context is stored on the run so a worker in another process, possibly
+            # minutes later, continues the same trace.
+            return _create_run(body, background, capture_context())
+
+    def _create_run(body: RunIn, background: BackgroundTasks, trace_ctx: str) -> dict:
         try:
             build_agent(body.agent)  # validate the spec up front
         except ValueError as exc:
@@ -109,7 +120,7 @@ def create_app(
         with db.session() as s:
             if s.get(Dataset, body.dataset_id) is None:
                 raise HTTPException(404, "dataset not found")
-            run = Run(**body.model_dump())
+            run = Run(**body.model_dump(), trace_context=trace_ctx)
             s.add(run)
             s.commit()
             run_id = run.id

@@ -178,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
     p_wk.set_defaults(func=cmd_worker)
 
     args = parser.parse_args(argv)
+    from .telemetry import setup_telemetry
+
+    setup_telemetry("agentprobe-worker" if args.command == "worker" else "agentprobe")
     return args.func(args)
 
 

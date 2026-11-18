@@ -131,6 +131,22 @@ toolchain (and a supply-chain surface) for little loss.
 Limitations: no authentication, no pagination beyond the latest 60 runs, and the dataset list is
 loaded once at page load (reload to see a newly created dataset).
 
+## Telemetry
+
+Why traces and not only logs: an evaluation is a fan-out (run, tasks, retries, agent and judge calls
+across threads, processes and a queue), and the questions asked of it are causal ("which task's
+retry made this run slow?", "did the worker that resumed this run share its trace?").
+
+- **Propagation through a queue.** Thread pools and Redis lists do not carry Python contextvars, so
+  context is passed explicitly: captured into a W3C carrier at `create_run`, persisted in
+  `runs.trace_context` (durable, survives re-delivery), restored by `execute_run`, and handed to
+  task threads as an explicit parent context. A corrupt carrier is ignored rather than failing a run.
+- **Existing databases** need the new `runs.trace_context` column (`create_all` does not alter
+  tables); a migration tool such as Alembic is the right fix once schemas must evolve in place.
+- **Cardinality and privacy.** Only low-cardinality attributes go on metrics; sensitive content
+  never goes on spans (see the module docstring and tests).
+- **Sampling** is left to the collector or the standard `OTEL_TRACES_SAMPLER` variables.
+
 ## Known limitations
 - Heartbeats prove the worker *process* is alive, not that the agent call is making progress; a
   hung agent call is bounded only by the agent's own timeout (HTTP agents default to 60 s).

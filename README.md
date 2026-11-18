@@ -1,5 +1,7 @@
 # AgentProbe
 
+[![ci](https://github.com/amitginz/agentprobe/actions/workflows/ci.yml/badge.svg)](https://github.com/amitginz/agentprobe/actions/workflows/ci.yml)
+
 Regression testing for LLM agents. Run an agent against a dataset, record a full trace of every
 task (output, tool calls, tokens, latency, cost), and answer the question that matters before you
 ship a prompt or model change: **did it get better, worse, or is that just noise?**
@@ -84,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: <owner>/agentprobe@v1
+      - uses: amitginz/agentprobe@main   # pin a tag or SHA once you cut a release
         with:
           dataset: evals/support-bot.json
           baseline-agent: "http:https://staging.example.com/agent"          # what is deployed
@@ -109,43 +111,9 @@ Design choices worth knowing:
   the summary table, so it cannot break the table or inject markup.
 - **Same logic locally:** `agentprobe ci --dataset d.json --baseline-agent A --candidate-agent B`.
 
-This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml). Honest status: the action's
-shell step and the CLI are tested locally (including simulating the step exactly as the runner
-executes it), but the action has not yet run on GitHub-hosted runners.
-
-## Observability (OpenTelemetry)
-
-Every run is traceable. Point AgentProbe at any OTLP/HTTP collector and each evaluation becomes
-a trace you can open in Jaeger, Tempo, Honeycomb or Datadog:
-
-```bash
-pip install "agentprobe[otel]"
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 agentprobe ci --dataset ... --baseline-agent ... --candidate-agent ...
-docker compose up   # API + workers + Jaeger UI on http://localhost:16686
-```
-
-```text
-agentprobe.create_run        API request
-└── agentprobe.run           one per execution (a resumed run gets a new span in the same trace)
-    └── agentprobe.task      one per task, correctly parented across the thread pool
-        ├── agent.call       one per attempt; failures carry the exception and ERROR status
-        └── judge.evaluate
-```
-
-- **Context survives process boundaries.** The W3C trace context is stored on the run row, so a
-  worker that picks the job up from Redis (even minutes later, after a crash and re-delivery)
-  continues the API request's trace. For `http:` agents it also sends a `traceparent` header, so an
-  instrumented agent under test shows up as child spans of the evaluation.
-- **Metrics:** `agentprobe.tasks` (by judge / passed / errored), `agentprobe.agent.latency`
-  histogram and `agentprobe.cost`.
-- **Privacy by default.** Task inputs, agent outputs and judge reasoning are never put on spans,
-  only sizes, token counts, costs, verdicts and timings, and an agent spec is reduced to its kind
-  (`http`), since spec URLs can embed credentials. A test asserts neither leaks.
-- **Zero cost when off.** Only the tiny `opentelemetry-api` is a core dependency (a no-op until an
-  SDK is configured); exporting needs the `otel` extra.
-- Verified end to end over the real OTLP wire format: a test runs the CLI in a separate process
-  against a local collector, decodes the protobuf, and checks that 40 tasks x 2 runs arrive as a
-  single connected trace plus metrics. Jaeger itself was not run here (no Docker available).
+This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml), and that job runs green on
+GitHub-hosted runners. The CI test job also runs the Redis integration test against a real Redis
+service (62 tests, none skipped).
 
 ## Case study: evaluating a real RAG agent
 

@@ -100,11 +100,11 @@ What this shows (all numbers are real runs, reproducible with the commands in th
 
 1. **Retrieval is solid, refusal is not.** The default finds the right document for 16/16
    in-scope questions, but answers 5 of 6 near-topic questions it should have refused.
-2. **No threshold fixes it.** Tightening the distance cutoff trades one failure for the other
-   (0.50 refuses everything out-of-scope but loses 9 in-scope questions). Paraphrased in-scope
-   questions and near-topic out-of-scope questions overlap in embedding distance, so a single
-   cutoff cannot separate them. The next improvement has to be a second-stage relevance check
-   (reranker or LLM gate), not more threshold tuning.
+2. **A single cutoff trades one failure for the other.** Tightening the distance threshold
+   refuses more near-topic questions but loses in-scope ones (0.50 refuses all 6 but loses 9).
+   On this set, paraphrased in-scope and near-topic out-of-scope questions overlap in embedding
+   distance. (The follow-up below shows this is dataset-dependent: on a second set, a tighter
+   cutoff worked better.)
 3. **The statistics refuse to oversell.** Threshold 0.50 vs the default is -18 points
    (77% → 59%), yet `agentprobe compare` reports *no significant change* (9 broke, 5 fixed, exact
    McNemar p = 0.42): with 22 questions that gap is within what shuffling can produce. The honest
@@ -113,6 +113,34 @@ What this shows (all numbers are real runs, reproducible with the commands in th
 The answers in these runs are extractive because no `ANTHROPIC_API_KEY` was set in the pipeline;
 the retrieval and refusal behaviour measured here is the same with an LLM, but answer *quality*
 (which the `llm` judge is for) was not evaluated.
+
+### Follow-up: does a reranker gate fix it?
+
+I added an optional cross-encoder gate to docs-rag (`RAG_RERANK=1`; each *question, passage*
+pair is scored jointly and weak passages are dropped), then tried to measure it without fooling
+myself:
+
+- I wrote a **25-question held-out set** (15 in-scope, 10 near-topic out-of-scope) *before*
+  looking at any gate scores, and used it only to evaluate. Thresholds were chosen on the
+  training sets with a rule fixed in advance (highest pass rate). The selection script is
+  [`docs_rag_sweep.py`](examples/docs_rag_sweep.py).
+- Held-out results, scored once per configuration:
+
+| Configuration | In-scope found | Refused | Pass |
+|---|---|---|---|
+| Default (distance 0.75, no gate) | 15/15 | 3/10 | 18/25 |
+| Gate, min -10 (selected on training sets) | 15/15 | 5/10 | 20/25 |
+| Gate, min -4 (exploratory) | 12/15 | 8/10 | 20/25 |
+| Distance cutoff only, 0.60 (exploratory) | 13/15 | 8/10 | 21/25 |
+
+**Verdict: a modest, unproven improvement, not a fix.** The selected gate adds two correct
+refusals and loses nothing (+8 points), and on the training sets it beat every distance-only
+setting at matched in-scope recall. But on the held-out set a plain distance cutoff of 0.60 did
+as well as the gate at the aggressive operating point, `agentprobe compare` calls every
+difference *not significant* (exact McNemar p = 0.50 and 0.73 against the default), and the
+gate still lets through questions like "How do I sign my Git commits with GPG?". I kept it
+opt-in and documented the numbers as they are. The real next step is a much larger labelled set,
+since 25 questions cannot resolve effects of this size.
 
 ## LLM-as-judge, and how far to trust it
 
@@ -139,6 +167,6 @@ Honest status: the core loop above works and is tested. Planned next:
 
 - [ ] OpenTelemetry traces for each agent step
 - [ ] Reusable GitHub Action wrapper
-- [ ] Grow the docs-rag datasets (22 questions cannot resolve small effects) and evaluate a reranker gate
+- [ ] Grow the docs-rag datasets (25-37 questions cannot resolve small effects): the reranker gate result is inconclusive
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and the trade-offs behind it.

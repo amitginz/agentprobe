@@ -1,0 +1,130 @@
+{
+ "name": "docs-rag-holdout",
+ "tasks": [
+  {
+   "input": "Why does my Docker build re-install dependencies every time I change one line of code?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do two services in my compose setup talk to each other?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Can I reach a container's web server from my laptop?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "I want to run many awaitables at once but keep going if one of them explodes",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is the right way to run heavy number crunching without freezing my coroutines?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What does a 403 response signify, and how is it different from a 401?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Is it safe to repeat a PUT request?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why must list endpoints never return everything at once?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why won't my index get used for WHERE LOWER(email) = 'x'?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Does an index on (country, city) help a query that filters only by city?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I check whether the database actually uses my index?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How should a commit message be worded?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is a safe way to undo a commit that is already on a shared branch?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How can a team catch a drop in answer quality before merging a change?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How does an LLM app make documents searchable by meaning?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I set up a Docker Swarm cluster?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I write a multi-stage Dockerfile for a Go service?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I implement OAuth2 refresh tokens in my API?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I rate-limit an API with a token bucket?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I partition a huge Postgres table?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I sign my Git commits with GPG?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I squash my last three commits into one?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I prevent prompt injection in my chatbot?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I quantize a model to 4 bits?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I profile memory usage of a Python script?",
+   "expected": "I don't know",
+   "judge": "contains"
+  }
+ ]
+}

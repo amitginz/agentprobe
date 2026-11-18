@@ -5,11 +5,11 @@ Run it with the *docs-rag-mcp* virtualenv (it needs chromadb, which AgentProbe i
     DOCS_RAG_PATH=~/Downloads/docs-rag-mcp \
       ~/Downloads/docs-rag-mcp/.venv/bin/python examples/docs_rag_agent.py --port 9000
 
-Then evaluate it. Query-string parameters override the pipeline's settings per run, so a
+Then evaluate it. Query-string parameters (k, max_distance, rerank_min) override the pipeline's settings per run, so a
 configuration change is just a different agent spec:
 
     agentprobe run --dataset examples/docs_rag_hard.json --agent "http:http://localhost:9000/agent?k=3"
-    agentprobe run --dataset examples/docs_rag_hard.json --agent "http:http://localhost:9000/agent?k=1"
+    agentprobe run --dataset examples/docs_rag_hard.json --agent "http:http://localhost:9000/agent?k=3&rerank_min=-4"
 
 The pipeline is used unmodified: this file only wraps `rag.answer.answer`. It reports the ranked
 retrieval list in the output so deterministic judges can check *which document* was found, not
@@ -37,18 +37,30 @@ LOCK = threading.Lock()  # chroma and the module-level threshold are shared stat
 STORE: DocStore | None = None
 
 
-def handle_question(question: str, k: int, max_distance: float) -> dict:
+_GATES: dict[float, object] = {}
+
+
+def _gate(min_score: float | None):
+    """One cached gate per cutoff so the model loads once, not on every request."""
+    if min_score is None:
+        return None
+    if min_score not in _GATES:
+        from rag.rerank import CrossEncoderGate
+
+        _GATES[min_score] = CrossEncoderGate(min_score)
+    return _GATES[min_score]
+
+
+def handle_question(question: str, k: int, max_distance: float, rerank_min: float | None) -> dict:
     assert STORE is not None
     with LOCK:
-        hits = STORE.search(question, k)
         previous = rag_answer.MAX_DISTANCE
         rag_answer.MAX_DISTANCE = max_distance  # the pipeline reads this when filtering hits
         try:
-            result = rag_answer.answer(STORE, question, k)
+            result = rag_answer.answer(STORE, question, k, gate=_gate(rerank_min))
         finally:
             rag_answer.MAX_DISTANCE = previous
-    kept = [h for h in hits if h.distance <= max_distance]
-    ranked = ", ".join(h.source for h in kept) or "(none)"
+    ranked = ", ".join(h.source for h in result.hits) or "(none)"
     output = f"{result.text}\nRetrieved (ranked): {ranked}\nGrounded: {result.grounded}"
     return {"output": output, "tool_calls": ["ask_docs"]}
 
@@ -60,7 +72,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("content-length", 0))))
             payload = handle_question(
-                body["input"], int(params.get("k", 4)), float(params.get("max_distance", 0.75))
+                body["input"],
+                int(params.get("k", 4)),
+                float(params.get("max_distance", 0.75)),
+                float(params["rerank_min"]) if "rerank_min" in params else None,
             )
             status = 200
         except Exception as exc:  # noqa: BLE001 - report to the evaluator rather than crash

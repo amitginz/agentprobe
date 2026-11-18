@@ -15,7 +15,11 @@ from pathlib import Path
 root = Path(sys.argv[1] if len(sys.argv) > 1 else "~/Downloads/docs-rag-mcp").expanduser()
 out_dir = Path(__file__).parent
 
-for name, filename in [("docs-rag-easy", "eval_set.json"), ("docs-rag-hard", "eval_hard.json")]:
+for name, filename in [
+    ("docs-rag-easy", "eval_set.json"),
+    ("docs-rag-hard", "eval_hard.json"),
+    ("docs-rag-holdout", "eval_holdout.json"),
+]:
     data = json.loads((root / "eval" / filename).read_text())
     tasks = [
         {

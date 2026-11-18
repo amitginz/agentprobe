@@ -19,14 +19,16 @@ jobs:
       - run: ruff check .
       - run: pytest -q
   agent-quality-gate:
-    # Demo of the product's core use case: fail the build if the candidate agent regressed.
+    # Dogfooding the reusable action in this repo: the candidate is a deliberately identical
+    # configuration, so this job passes; point it at your own agent endpoints in real use.
     runs-on: ubuntu-latest
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -e .
-      - run: agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.9,seed=1" --label baseline
-      - run: agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.9,seed=2" --label candidate
-      - run: agentprobe compare --baseline 1 --candidate 2 --fail-on-regression
+      - uses: ./
+        id: probe
+        with:
+          dataset: examples/dataset.json
+          baseline-agent: "mock:accuracy=0.9,seed=1"
+          candidate-agent: "mock:accuracy=0.9,seed=1"
+      - run: echo "verdict=${{ steps.probe.outputs.verdict }}"

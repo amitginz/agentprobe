@@ -2,6 +2,7 @@
 
     agentprobe run --dataset examples/dataset.json --agent mock:accuracy=0.9 --label v1
     agentprobe compare --baseline 1 --candidate 2 --fail-on-regression
+    agentprobe ci --dataset d.json --baseline-agent A --candidate-agent B   # both steps, for CI
 """
 
 from __future__ import annotations
@@ -95,6 +96,28 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
     return 1 if args.require_reliable and cal.reliability != "reliable" else 0
 
 
+def cmd_ci(args: argparse.Namespace) -> int:
+    from .ci import render_markdown, run_ci, to_json, write_github_outputs
+
+    outcome = run_ci(
+        Database(args.db),
+        args.dataset,
+        args.baseline_agent,
+        args.candidate_agent,
+        concurrency=args.concurrency,
+        budget_usd=args.budget,
+        alpha=args.alpha,
+    )
+    markdown = render_markdown(outcome, args.baseline_agent, args.candidate_agent)
+    print(to_json(outcome))
+    write_github_outputs(outcome, markdown)
+    label = outcome.verdict.replace("_", " ").upper()
+    print(f"\n{label}", file=sys.stderr)
+    if outcome.verdict == "infrastructure_error":
+        return 2  # no verdict: never swallowed by --no-fail, because nothing was actually checked
+    return 0 if args.no_fail else outcome.exit_code_failure
+
+
 def cmd_worker(args: argparse.Namespace) -> int:
     import logging
     import signal
@@ -138,6 +161,16 @@ def main(argv: list[str] | None = None) -> int:
     p_cal.add_argument("--min-n", type=int, default=30)
     p_cal.add_argument("--require-reliable", action="store_true", help="exit 1 unless the judge is reliable")
     p_cal.set_defaults(func=cmd_calibrate)
+
+    p_ci = sub.add_parser("ci", help="run baseline + candidate agents and gate on the comparison")
+    p_ci.add_argument("--dataset", required=True)
+    p_ci.add_argument("--baseline-agent", required=True)
+    p_ci.add_argument("--candidate-agent", required=True)
+    p_ci.add_argument("--concurrency", type=int, default=4)
+    p_ci.add_argument("--budget", type=float, default=None, help="max spend in USD per run")
+    p_ci.add_argument("--alpha", type=float, default=0.05)
+    p_ci.add_argument("--no-fail", action="store_true", help="report a regression but exit 0")
+    p_ci.set_defaults(func=cmd_ci)
 
     p_wk = sub.add_parser("worker", help="run a queue worker that executes enqueued runs")
     p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

@@ -39,7 +39,7 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | Dashboard | Zero-build web UI at `/`: KPI tiles, pass-rate / cost / p95 trend charts (inline SVG), run history, run drill-down, and a side-by-side **regression view** listing exactly which tasks a change broke or fixed; auto-refreshes while runs are in flight |
 | Queue | **Redis job queue with leases and heartbeats**: at-least-once delivery, crash recovery that resumes unfinished runs, poison-job protection, horizontally scalable `agentprobe worker` processes |
 | Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL` |
-| Ops | Dockerfile, docker-compose with Postgres, GitHub Actions CI with an agent-quality gate |
+| Ops | Dockerfile, docker-compose (API + workers + Redis + Postgres), **reusable GitHub Action** that gates PRs on agent quality |
 
 Try the dashboard with seeded history (a bad model swap is hidden in there for you to find):
 
@@ -68,6 +68,49 @@ Evaluate your own agent by exposing an endpoint that accepts `{"input": "..."}` 
 ```bash
 agentprobe run --dataset my_tasks.json --agent "http:http://localhost:9000/agent" --budget 2.50
 ```
+
+## Use it as a GitHub Action
+
+Gate pull requests on agent quality. The action runs a baseline and a candidate agent on the same
+dataset, compares them with the paired exact test, writes a report to the job summary, and fails
+the job on a statistically significant regression:
+
+```yaml
+# .github/workflows/agent-quality.yml
+on: pull_request
+jobs:
+  agent-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: <owner>/agentprobe@v1
+        with:
+          dataset: evals/support-bot.json
+          baseline-agent: "http:https://staging.example.com/agent"          # what is deployed
+          candidate-agent: "http:https://pr-${{ github.event.number }}.preview.example.com/agent"
+          budget-usd: "2.00"
+```
+
+The job summary shows pass rate, cost and p95 for both sides, how many tasks broke or were fixed,
+the p-value, and a table of the tasks that broke with both outputs. Outputs (`verdict`,
+`baseline-pass-rate`, `candidate-pass-rate`, `p-value`, `broken`, `fixed`) can drive later steps.
+Inputs: `fail-on-regression`, `alpha`, `concurrency`, `budget-usd`, `python-version`.
+
+Design choices worth knowing:
+
+- **Three outcomes, not two.** Exit 0 means no regression, exit 1 means a significant regression,
+  exit 2 means **no verdict** because an endpoint was down or over 20% of tasks errored.
+  An outage is never reported as "your change made the agent worse", and never passes silently
+  either; `fail-on-regression: false` does not hide it.
+- **Inputs never touch the shell.** They reach the script as environment variables, so a crafted
+  input cannot inject commands (a test asserts the step contains no `${{ }}` interpolation).
+- **Untrusted output is escaped.** Agent output is HTML-escaped and flattened before it goes into
+  the summary table, so it cannot break the table or inject markup.
+- **Same logic locally:** `agentprobe ci --dataset d.json --baseline-agent A --candidate-agent B`.
+
+This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml). Honest status: the action's
+shell step and the CLI are tested locally (including simulating the step exactly as the runner
+executes it), but the action has not yet run on GitHub-hosted runners.
 
 ## Case study: evaluating a real RAG agent
 
@@ -166,7 +209,6 @@ million tokens).
 Honest status: the core loop above works and is tested. Planned next:
 
 - [ ] OpenTelemetry traces for each agent step
-- [ ] Reusable GitHub Action wrapper
 - [ ] Grow the docs-rag datasets (25-37 questions cannot resolve small effects): the reranker gate result is inconclusive
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and the trade-offs behind it.

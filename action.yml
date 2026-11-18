@@ -1,0 +1,87 @@
+name: AgentProbe regression gate
+description: >
+  Run a baseline and a candidate LLM agent on the same dataset, compare them with a paired exact
+  test, post the result to the job summary, and fail the job on a statistically significant regression.
+author: AgentProbe
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  dataset:
+    description: Path to a dataset JSON file in the caller's repository.
+    required: true
+  baseline-agent:
+    description: >
+      Agent spec for the reference version (for example `http:https://staging.example.com/agent`
+      or `mock:accuracy=0.9`).
+    required: true
+  candidate-agent:
+    description: Agent spec for the version under test.
+    required: true
+  fail-on-regression:
+    description: Fail the job when a significant regression is found ("true" or "false").
+    default: "true"
+  alpha:
+    description: Significance level for the paired exact test.
+    default: "0.05"
+  concurrency:
+    description: Parallel tasks per run.
+    default: "4"
+  budget-usd:
+    description: Optional hard cost cap per run, in USD. Empty means no cap.
+    default: ""
+  python-version:
+    description: Python version used to run AgentProbe (3.11 or newer).
+    default: "3.12"
+
+outputs:
+  verdict:
+    description: regression, improvement, no_significant_change, or infrastructure_error.
+    value: ${{ steps.gate.outputs.verdict }}
+  baseline-pass-rate:
+    description: Baseline pass rate (0 to 1).
+    value: ${{ steps.gate.outputs.baseline-pass-rate }}
+  candidate-pass-rate:
+    description: Candidate pass rate (0 to 1).
+    value: ${{ steps.gate.outputs.candidate-pass-rate }}
+  p-value:
+    description: Exact McNemar p-value for the paired comparison.
+    value: ${{ steps.gate.outputs.p-value }}
+  broken:
+    description: Tasks that passed on the baseline and fail on the candidate.
+    value: ${{ steps.gate.outputs.broken }}
+  fixed:
+    description: Tasks that failed on the baseline and pass on the candidate.
+    value: ${{ steps.gate.outputs.fixed }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install AgentProbe
+      shell: bash
+      run: python -m pip install --quiet "${{ github.action_path }}"
+
+    - name: Run baseline and candidate, compare
+      id: gate
+      shell: bash
+      # Inputs go through env vars, never interpolated into the script: a crafted input must not
+      # be able to inject shell commands.
+      env:
+        AP_DATASET: ${{ inputs.dataset }}
+        AP_BASELINE: ${{ inputs.baseline-agent }}
+        AP_CANDIDATE: ${{ inputs.candidate-agent }}
+        AP_FAIL: ${{ inputs.fail-on-regression }}
+        AP_ALPHA: ${{ inputs.alpha }}
+        AP_CONCURRENCY: ${{ inputs.concurrency }}
+        AP_BUDGET: ${{ inputs.budget-usd }}
+      run: |
+        args=(--dataset "$AP_DATASET" --baseline-agent "$AP_BASELINE" --candidate-agent "$AP_CANDIDATE"
+              --alpha "$AP_ALPHA" --concurrency "$AP_CONCURRENCY")
+        if [ -n "$AP_BUDGET" ]; then args+=(--budget "$AP_BUDGET"); fi
+        if [ "$AP_FAIL" != "true" ]; then args+=(--no-fail); fi
+        agentprobe --db "sqlite:///${RUNNER_TEMP}/agentprobe.db" ci "${args[@]}"

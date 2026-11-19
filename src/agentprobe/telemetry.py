@@ -8,6 +8,7 @@ Enable export with the standard environment variables:
 
     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318   # any OTLP/HTTP collector, e.g. Jaeger
     OTEL_SERVICE_NAME=agentprobe                        # optional
+    OTEL_METRICS_EXPORTER=none                          # traces only (for backends such as Jaeger)
     AGENTPROBE_OTEL_CONSOLE=1                           # also print spans to stdout (debugging)
 
 What a trace looks like::
@@ -20,7 +21,8 @@ What a trace looks like::
 
 Privacy: task inputs, agent outputs and judge reasoning are never put on spans (they may hold
 sensitive data); only sizes, token counts, costs, verdicts and timings. The agent spec is reduced to
-its kind (``http`` / ``mock``) because spec URLs can embed credentials.
+its kind (``http`` / ``mock``) because spec URLs can embed credentials, and exception messages have
+URLs redacted and no stack trace, because HTTP client errors repeat the full request URL.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
 from opentelemetry import context as otel_context
 from opentelemetry import metrics, propagate, trace
@@ -48,9 +51,25 @@ def tracer() -> trace.Tracer:
     return trace.get_tracer("agentprobe", __version__)
 
 
+_URL = re.compile(r"[a-zA-Z][a-zA-Z0-9+.-]*://\S+")
+
+
+def redact(text: str) -> str:
+    """Replace URLs with a placeholder: error messages from HTTP clients embed the full request URL,
+    which for an agent endpoint can carry a token or an internal hostname."""
+    return _URL.sub("<url>", text)
+
+
 def mark_error(span: trace.Span, exc: BaseException) -> None:
-    span.record_exception(exc)
-    span.set_status(Status(StatusCode.ERROR, f"{type(exc).__name__}: {exc}"[:200]))
+    """Record a failure on a span without leaking what is inside the exception.
+
+    The SDK's `record_exception` stores the raw message and a stack trace, either of which can
+    contain URLs, credentials or task content, so the event is written by hand: exception type and a
+    redacted, truncated message only.
+    """
+    message = redact(str(exc))[:200]
+    span.add_event("exception", {"exception.type": type(exc).__name__, "exception.message": message})
+    span.set_status(Status(StatusCode.ERROR, f"{type(exc).__name__}: {message}"))
 
 
 def agent_kind(spec: str) -> str:
@@ -110,7 +129,10 @@ def setup_telemetry(service_name: str = "agentprobe") -> bool:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
         provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
-        readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
+        # Many backends (Jaeger, for one) accept traces only; the standard variable turns metrics off
+        # instead of logging a failed export on every flush.
+        if os.environ.get("OTEL_METRICS_EXPORTER", "otlp").lower() != "none":
+            readers.append(PeriodicExportingMetricReader(OTLPMetricExporter()))
     if console:
         provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
     trace.set_tracer_provider(provider)

@@ -144,7 +144,11 @@ retry made this run slow?", "did the worker that resumed this run share its trac
 - **Existing databases** need the new `runs.trace_context` column (`create_all` does not alter
   tables); a migration tool such as Alembic is the right fix once schemas must evolve in place.
 - **Cardinality and privacy.** Only low-cardinality attributes go on metrics; sensitive content
-  never goes on spans (see the module docstring and tests).
+  never goes on spans (see the module docstring and tests) Exceptions are the sneaky channel: an
+  HTTP client's error text repeats the request URL, and the SDK's `record_exception` also exports a
+  stack trace, so failures are recorded by hand (type plus a URL-redacted, truncated message). A real
+  Jaeger trace exposed this; the earlier privacy test only inspected span attributes and now covers
+  status text and event attributes too.
 - **Sampling** is left to the collector or the standard `OTEL_TRACES_SAMPLER` variables.
 
 ## Power and stability

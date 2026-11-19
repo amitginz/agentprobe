@@ -71,8 +71,15 @@ def test_no_task_content_or_agent_spec_leaks_into_spans(db, spans):
         s.commit()
         run_id = run.id
     execute_run(db, run_id)
-    blob = json.dumps([dict(sp.attributes) | {"name": sp.name} for sp in spans.get_finished_spans()], default=str)
+    # everything a backend could ever see: attributes, status text, event names and event attributes
+    def everything(sp):
+        return [dict(sp.attributes), sp.name, sp.status.description or "",
+                [(e.name, dict(e.attributes)) for e in sp.events]]
+
+    blob = json.dumps([everything(sp) for sp in spans.get_finished_spans()], default=str)
     assert "hunter2" not in blob and "123-45-6789" not in blob and "127.0.0.1" not in blob
+    errors = [sp for sp in spans.get_finished_spans() if sp.name == "agent.call"]
+    assert errors and all(sp.status.status_code == StatusCode.ERROR for sp in errors)  # the failure stays visible
     assert agent_kind(secret) == "http"
 
 
@@ -87,6 +94,26 @@ class FlakyOnce:
         if first:
             raise RuntimeError("upstream 503")
         return AgentResult(output=expected)
+
+
+def test_error_messages_are_redacted_and_carry_no_stack_trace():
+    from agentprobe.telemetry import redact
+
+    assert redact("Server error for url 'https://h.example/agent?token=abc' x") == "Server error for url '<url> x"
+    assert redact("plain failure") == "plain failure"
+
+
+def test_exception_text_with_a_url_is_redacted_on_the_span(db, spans):
+    class Leaky:
+        def run(self, *_):
+            raise RuntimeError("503 for url https://internal.example/agent?token=hunter2 (see stack)")
+
+    execute_run(db, make_run(db, n=1, retries=0), agent=Leaky())
+    sp = by_name(spans)["agent.call"][0]
+    seen = json.dumps([sp.status.description, [(e.name, dict(e.attributes)) for e in sp.events]])
+    assert "hunter2" not in seen and "internal.example" not in seen and "<url>" in seen
+    assert sp.status.status_code == StatusCode.ERROR
+    assert not any("stacktrace" in e.attributes for e in sp.events)  # no stack trace is exported
 
 
 def test_failed_attempt_is_recorded_on_its_span_and_retry_succeeds(db, spans):

@@ -115,6 +115,50 @@ This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml), and that 
 GitHub-hosted runners. The CI test job also runs the Redis integration test against a real Redis
 service (62 tests, none skipped).
 
+## Observability (OpenTelemetry)
+
+Every run is traceable. Point AgentProbe at any OTLP/HTTP collector and each evaluation becomes
+a trace you can open in Jaeger, Tempo, Honeycomb or Datadog:
+
+```bash
+pip install "agentprobe[otel]"
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 agentprobe ci --dataset ... --baseline-agent ... --candidate-agent ...
+docker compose up   # API + workers + Jaeger UI on http://localhost:16686
+```
+
+```text
+agentprobe.create_run        API request
+└── agentprobe.run           one per execution (a resumed run gets a new span in the same trace)
+    └── agentprobe.task      one per task, correctly parented across the thread pool
+        ├── agent.call       one per attempt; failures carry the exception and ERROR status
+        └── judge.evaluate
+```
+
+- **Context survives process boundaries.** The W3C trace context is stored on the run row, so a
+  worker that picks the job up from Redis (even minutes later, after a crash and re-delivery)
+  continues the API request's trace. For `http:` agents it also sends a `traceparent` header, so an
+  instrumented agent under test shows up as child spans of the evaluation.
+- **Metrics:** `agentprobe.tasks` (by judge / passed / errored), `agentprobe.agent.latency`
+  histogram and `agentprobe.cost`.
+- **Privacy by default.** Task inputs, agent outputs and judge reasoning are never put on spans,
+  only sizes, token counts, costs, verdicts and timings, and an agent spec is reduced to its kind
+  (`http`), since spec URLs can embed credentials. A test asserts neither leaks.
+- **Zero cost when off.** Only the tiny `opentelemetry-api` is a core dependency (a no-op until an
+  SDK is configured); exporting needs the `otel` extra.
+- Verified end to end over the real OTLP wire format (a test runs the CLI in a separate process
+  against a local collector and decodes the protobuf), **and against a real Jaeger 2.23** (official
+  release binary): one `agentprobe ci` comparison of 20 tasks x 2 runs arrives as a single
+  126-span trace of depth 4, and Jaeger's GenAI view recognises the 40 `agent.call` spans from their
+  `gen_ai.usage.*` attributes. The docker-compose file itself has still not been run.
+- **Errors are visible but not leaky.** A failed attempt is a red `agent.call` span with the
+  exception type; URLs in the message are redacted and no stack trace is exported. (This came from
+  looking at a real trace: the first Jaeger run showed the agent endpoint URL inside an HTTP error
+  message, which an earlier test of mine had missed because it only inspected span attributes.)
+- Traces-only backends such as Jaeger reject OTLP metrics; set `OTEL_METRICS_EXPORTER=none`
+  (the compose file does).
+
+![A real AgentProbe trace in Jaeger: ci, two runs, tasks, agent calls, judge calls](docs/jaeger-trace.jpg)
+
 ## Is my dataset big enough? Is my agent stable?
 
 Two questions decide whether a comparison means anything, and both have a command.

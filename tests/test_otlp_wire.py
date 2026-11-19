@@ -97,3 +97,23 @@ def test_telemetry_is_silent_and_harmless_when_not_configured(tmp_path):
     )
     assert proc.returncode == 0 and "40/40 passed" in proc.stdout
     assert "Traceback" not in proc.stderr and "opentelemetry" not in proc.stderr.lower()
+
+
+def test_metrics_export_can_be_disabled_for_traces_only_backends(tmp_path):
+    collector = Collector()
+    threading.Thread(target=collector.serve_forever, daemon=True).start()
+    try:
+        env = {
+            "PATH": "/usr/bin:/bin",
+            "OTEL_EXPORTER_OTLP_ENDPOINT": f"http://127.0.0.1:{collector.server_port}",
+            "OTEL_METRICS_EXPORTER": "none",
+        }
+        proc = subprocess.run(
+            [sys.executable, "-m", "agentprobe.cli", "--db", f"sqlite:///{tmp_path / 'm.db'}", "run",
+             "--dataset", str(DATASET), "--agent", "mock:accuracy=1.0"],
+            check=False, env=env, capture_output=True, text=True, timeout=60,
+        )
+        assert proc.returncode == 0, proc.stderr
+    finally:
+        collector.shutdown()
+    assert collector.traces and not collector.metrics  # spans still flow; no metrics request was sent

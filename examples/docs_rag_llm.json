@@ -1,0 +1,501 @@
+{
+ "name": "docs-rag-llm",
+ "tasks": [
+  {
+   "input": "How do I stop a blocking call from freezing the event loop?",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How can one failed task not cancel the others in gather?",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Which HTTP status code should I return after creating a resource?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I prevent duplicate payments when a client retries a POST?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Why should Dockerfile instructions be ordered from least to most frequently changed?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do containers on the same network find each other?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Which columns should come first in a composite index?",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Why does LOWER(email) in a WHERE clause skip the index?",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "When is it safe to use git revert instead of reset?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Should I rebase commits that teammates already pulled?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I reduce hallucinations in a RAG application?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What metrics measure retrieval quality?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What is the capital of France?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "Who won the 2018 football world cup?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "What is the best recipe for chocolate cake?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "My async web scraper hangs forever when a server stops responding",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What happens if I call time.sleep inside async code?",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Do gather results come back in the order I passed them?",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "The client got a 409, what does that mean?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How should I page through large result sets in my API?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Is it safe to retry a DELETE request?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Why does my docker build reinstall all the packages every time?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I keep database data after the container is removed?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Run the API, database and cache together with one command",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "I have an index on (country, city) but my query only filters on city",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Too many indexes are slowing down my inserts",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I undo a commit that is already pushed to main?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How long should the first line of a commit message be?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I make the model say it does not know instead of guessing?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Ways to lower token spend in my app",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I validate JSON output from a model?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I configure a Kubernetes ingress controller?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I use git cherry-pick?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I create an index in MongoDB?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How does GraphQL handle pagination?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I fine-tune a language model?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I deploy a Flask app to AWS Lambda?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "Why does my Docker build re-install dependencies every time I change one line of code?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do two services in my compose setup talk to each other?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Can I reach a container's web server from my laptop?",
+   "expected": "Answerable from docker-basics.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "I want to run many awaitables at once but keep going if one of them explodes",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What is the right way to run heavy number crunching without freezing my coroutines?",
+   "expected": "Answerable from python-asyncio.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What does a 403 response signify, and how is it different from a 401?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Is it safe to repeat a PUT request?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Why must list endpoints never return everything at once?",
+   "expected": "Answerable from rest-api-design.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Why won't my index get used for WHERE LOWER(email) = 'x'?",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "Does an index on (country, city) help a query that filters only by city?",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I check whether the database actually uses my index?",
+   "expected": "Answerable from sql-indexing.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How should a commit message be worded?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "What is a safe way to undo a commit that is already on a shared branch?",
+   "expected": "Answerable from git-workflow.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How can a team catch a drop in answer quality before merging a change?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How does an LLM app make documents searchable by meaning?",
+   "expected": "Answerable from llm-guardrails.md.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS if the answer text contains information that directly answers the question (an excerpt from documentation is fine). FAIL if it is off-topic, only loosely related, or says it does not know."
+   }
+  },
+  {
+   "input": "How do I set up a Docker Swarm cluster?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I write a multi-stage Dockerfile for a Go service?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I implement OAuth2 refresh tokens in my API?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I rate-limit an API with a token bucket?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I partition a huge Postgres table?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I sign my Git commits with GPG?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I squash my last three commits into one?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I prevent prompt injection in my chatbot?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I quantize a model to 4 bits?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  },
+  {
+   "input": "How do I profile memory usage of a Python script?",
+   "expected": "Not covered by the documents; the correct response is to say it does not know.",
+   "judge": "llm",
+   "judge_config": {
+    "rubric": "PASS only if the answer says it does not know or that the documents do not cover the question. FAIL if it presents documentation text as if it answered the question."
+   }
+  }
+ ]
+}

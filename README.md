@@ -258,6 +258,23 @@ as errored (excluded from statistics) rather than failing the agent, and judge s
 the run budget. Pricing defaults are placeholders; set `AGENTPROBE_JUDGE_PRICE_IN/OUT` (USD per
 million tokens).
 
+### Calibrating the live judge (runbook)
+
+The judge's prompt handling, parsing, retries and cost accounting are tested against a scripted
+model and against a fake API server (request shape, headers, 529 retries, fail-fast on a bad key).
+What has not been measured is how well a *real* model agrees with a *person*. To measure it:
+
+```bash
+export ANTHROPIC_API_KEY=...                      # your own shell; the script never writes it anywhere
+bash examples/live_judge_run.sh                   # docs-rag answers 62 questions, the live judge grades them (budget-capped, $1 default)
+agentprobe label --run 1 --n 40                   # you grade 40 answers; the judge's verdict is hidden from you
+agentprobe calibrate --run 1 --require-reliable   # kappa, agreement with CI, bias note; exit 1 if not reliable
+```
+
+`label` shows the question, reference, rubric and answer, saves each grade immediately, and never
+shows what the judge said, so it cannot anchor you. The result is reported as it comes out,
+including "unreliable".
+
 ## Roadmap
 
 Honest status: the core loop above works and is tested. Planned next:

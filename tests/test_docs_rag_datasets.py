@@ -37,3 +37,12 @@ def test_dataset_is_well_formed_and_judges_behave(name):
     for t in out_scope:
         assert judge("contains", t["expected"], {}, AgentResult(output=agent_output(REFUSAL, []))).passed
         assert not judge("contains", t["expected"], {}, AgentResult(output=agent_output("an answer", ["a.md"]))).passed
+
+
+def test_llm_calibration_dataset_is_well_formed():
+    data = json.loads((EXAMPLES / "docs_rag_llm.json").read_text())
+    tasks = data["tasks"]
+    assert len(tasks) >= 40  # enough to reach the 30-label minimum for calibration
+    assert all(t["judge"] == "llm" and t["judge_config"]["rubric"] for t in tasks)
+    assert len({t["input"] for t in tasks}) == len(tasks)  # no duplicates across the source sets
+    assert sum("say it does not know" in t["expected"] for t in tasks) >= 10  # both classes are present

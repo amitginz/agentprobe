@@ -166,6 +166,54 @@ def cmd_stability(args: argparse.Namespace) -> int:
     return 1 if args.max_flaky is not None and report.flaky_fraction > args.max_flaky else 0
 
 
+def cmd_label(args: argparse.Namespace) -> int:
+    """Grade a sample of a run's answers by hand. The judge's verdict is never shown."""
+    from .calibration import label_sample
+    from .db import HumanLabel
+
+    db = Database(args.db)
+    with db.session() as s:
+        if s.get(Run, args.run) is None:
+            print("run not found", file=sys.stderr)
+            return 2
+        sample = label_sample(s, args.run, args.n)
+        if not sample:
+            print("nothing left to label (no LLM-judged, unlabeled answers in this run)")
+            return 0
+        done = 0
+        print(f"{len(sample)} answers to grade. [p]ass  [f]ail  [s]kip  [q]uit and save\n")
+        for i, item in enumerate(sample, 1):
+            print(f"--- {i}/{len(sample)} " + "-" * 50)
+            print(f"QUESTION : {item['input']}")
+            if item["expected"]:
+                print(f"REFERENCE: {item['expected']}")
+            if item["rubric"]:
+                print(f"RUBRIC   : {item['rubric']}")
+            print("ANSWER   :\n" + "\n".join("    " + line for line in item["output"].splitlines()[: args.max_lines]))
+            while True:
+                try:
+                    choice = input("grade> ").strip().lower()
+                except EOFError:
+                    choice = "q"
+                if choice in ("p", "f", "s", "q"):
+                    break
+                print("type p, f, s or q")
+            if choice == "q":
+                break
+            if choice == "s":
+                continue
+            row = s.query(HumanLabel).filter_by(run_id=args.run, task_id=item["task_id"]).first()
+            if row:
+                row.passed = choice == "p"
+            else:
+                s.add(HumanLabel(run_id=args.run, task_id=item["task_id"], passed=choice == "p"))
+            s.commit()  # saved immediately: quitting or crashing never loses graded answers
+            done += 1
+        total = s.query(HumanLabel).filter_by(run_id=args.run).count()
+    print(f"\ngraded {done} this session, {total} in total. Next: agentprobe calibrate --run {args.run}")
+    return 0
+
+
 def cmd_worker(args: argparse.Namespace) -> int:
     import logging
     import signal
@@ -235,6 +283,12 @@ def main(argv: list[str] | None = None) -> int:
     p_st.add_argument("--concurrency", type=int, default=4)
     p_st.add_argument("--max-flaky", type=float, default=None, help="exit 1 if more than this fraction of tasks is flaky")
     p_st.set_defaults(func=cmd_stability)
+
+    p_lb = sub.add_parser("label", help="grade answers by hand to calibrate an LLM judge")
+    p_lb.add_argument("--run", type=int, required=True)
+    p_lb.add_argument("--n", type=int, default=40, help="how many answers to grade")
+    p_lb.add_argument("--max-lines", type=int, default=12)
+    p_lb.set_defaults(func=cmd_label)
 
     p_wk = sub.add_parser("worker", help="run a queue worker that executes enqueued runs")
     p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

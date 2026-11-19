@@ -125,14 +125,14 @@ def label_sample(s: Session, run_id: int, n: int) -> list[dict]:
     """
     labeled = set(s.scalars(select(HumanLabel.task_id).where(HumanLabel.run_id == run_id)))
     rows = s.execute(
-        select(Task.id, Task.input, Task.expected, TaskResult.output)
+        select(Task.id, Task.input, Task.expected, TaskResult.output, Task.judge_config)
         .join(TaskResult, TaskResult.task_id == Task.id)
         .where(TaskResult.run_id == run_id, Task.judge == "llm", TaskResult.error == "")
         .order_by(Task.id)
     ).all()
     pool = [
-        {"task_id": tid, "input": inp, "expected": exp, "output": out}
-        for tid, inp, exp, out in rows
+        {"task_id": tid, "input": inp, "expected": exp, "output": out, "rubric": (cfg or {}).get("rubric", "")}
+        for tid, inp, exp, out, cfg in rows
         if tid not in labeled
     ]
     random.Random(run_id).shuffle(pool)

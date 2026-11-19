@@ -214,3 +214,55 @@ def test_calibration_ignores_deterministic_tasks(tmp_path):
 
 def test_task_result_columns_exist(db):
     assert {"judge_reasoning", "judge_cost_usd"} <= set(TaskResult.__table__.columns.keys())
+
+
+# --- the Anthropic client's wire behaviour, against a fake server ---------------------------
+
+def _client_with(handler, **kw):
+    import httpx
+
+    from agentprobe.llm_judge import AnthropicClient
+
+    c = AnthropicClient("test-key", "claude-haiku-5-5", **kw)
+    c._http = httpx.Client(transport=httpx.MockTransport(handler), headers=c._http.headers)
+    return c
+
+
+def test_anthropic_client_sends_the_documented_request_and_parses_the_reply(monkeypatch):
+    import httpx
+
+    seen = {}
+
+    def handler(request):
+        seen["headers"], seen["body"], seen["url"] = request.headers, json.loads(request.content), str(request.url)
+        return httpx.Response(200, json={
+            "content": [{"type": "text", "text": verdict_json(True)}],
+            "usage": {"input_tokens": 120, "output_tokens": 30},
+        })
+
+    comp = _client_with(handler).complete("SYS", "USER")
+    assert seen["url"] == "https://api.anthropic.com/v1/messages"
+    assert seen["headers"]["x-api-key"] == "test-key" and seen["headers"]["anthropic-version"] == "2023-06-01"
+    body = seen["body"]
+    assert body["model"] == "claude-haiku-5-5" and body["temperature"] == 0 and body["system"] == "SYS"
+    assert body["messages"] == [{"role": "user", "content": "USER"}]
+    assert (comp.input_tokens, comp.output_tokens) == (120, 30) and '"verdict": "pass"' in comp.text
+
+
+def test_anthropic_client_retries_overload_then_succeeds_and_gives_up_on_client_errors(monkeypatch):
+    import httpx
+
+    monkeypatch.setattr("agentprobe.llm_judge.time.sleep", lambda _: None)
+    calls = {"n": 0}
+
+    def flaky(request):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return httpx.Response(529, json={"error": {"type": "overloaded_error"}})
+        return httpx.Response(200, json={"content": [{"type": "text", "text": "ok"}], "usage": {}})
+
+    assert _client_with(flaky).complete("s", "u").text == "ok" and calls["n"] == 3
+
+    bad = _client_with(lambda r: httpx.Response(401, json={"error": {"type": "authentication_error"}}))
+    with pytest.raises(httpx.HTTPStatusError):  # a bad key must fail fast, not be retried
+        bad.complete("s", "u")

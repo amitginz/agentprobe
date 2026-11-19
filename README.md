@@ -139,6 +139,30 @@ deviation. Differences smaller than about twice that are indistinguishable from 
 baseline. `--max-flaky 0.1` fails the command when too much of the dataset is unstable. A flaky mock
 agent (`mock:accuracy=0.8,jitter=0.4`) makes this testable without an API key.
 
+## Performance: how the queue scales
+
+Measured on a 18-core Apple-silicon laptop with a local Redis, SQLite storage, and each worker a
+separate OS process ([`benchmark_queue.py`](examples/benchmark_queue.py), median of 3 trials; 24
+runs x 40 tasks, simulated agent latency 20 ms, one task at a time per run so only the worker and
+queue layer is being measured):
+
+| Workers | Tasks/s | Speedup | Efficiency |
+|---|---|---|---|
+| 1 | 38.3 | 1.00x | 100% |
+| 2 | 76.6 | 2.00x | 100% |
+| 4 | 152.9 | 3.99x | 100% |
+| 8 | 300.5 | 7.84x | 98% |
+
+Throughput scales essentially linearly with workers: queueing, leases and claiming add almost no
+overhead when agent calls take real time. The ceiling is storage, not Redis. With **zero** agent
+latency every worker count sustains about **4,400 tasks/s** (1 worker 4,384; 8 workers 4,432),
+because SQLite allows one writer at a time. For agents whose calls take 20 ms or more, that ceiling is
+far from being reached; it matters for synthetic or very fast agents, and moving to PostgreSQL (the
+compose setup) is the way to lift it. I have not benchmarked Postgres, so I do not claim a number.
+
+Caveat: the agent is simulated (a sleep), so this validates the infrastructure, not any real agent's
+throughput, and everything ran on one machine.
+
 ## Case study: evaluating a real RAG agent
 
 The first real agent under test is my own `docs-rag-mcp` (ChromaDB retrieval over

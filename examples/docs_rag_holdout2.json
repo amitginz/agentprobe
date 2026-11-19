@@ -1,0 +1,365 @@
+{
+ "name": "docs-rag-holdout2",
+ "tasks": [
+  {
+   "input": "What's the difference between an image and a container?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why should I add a .dockerignore file?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What does -p 8080:80 do when I start a container?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which kind of base image keeps my build small?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What isolates one container from another and limits its resources?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Do containers each run their own operating system kernel?",
+   "expected": "Retrieved[^\\n]*docker\\-basics\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is a coroutine and when does it actually run?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How can thousands of network requests share a single thread?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I start a coroutine running in the background while I do other work?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which call gives an awaitable a deadline in Python 3.11 and later?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Can a process pool help with CPU-heavy work in async code?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Does asyncio run my code on multiple threads by default?",
+   "expected": "Retrieved[^\\n]*python\\-asyncio\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which HTTP method updates only part of a resource?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is the difference between PUT and PATCH?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which status code signals success with no response body?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What status should I return when the caller is not authenticated?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What shape should error responses have?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Is it acceptable for a GET request to change data?",
+   "expected": "Retrieved[^\\n]*rest\\-api\\-design\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why can't a B-tree index help with LIKE '%abc'?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What data structure do most relational database indexes use?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which column should come first in a composite index?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why shouldn't I just index every column?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Do indexes make INSERT and UPDATE faster or slower?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What kinds of lookups can a B-tree index serve efficiently?",
+   "expected": "Retrieved[^\\n]*sql\\-indexing\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How long should a feature branch live?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How big should a pull request be?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is the difference between rebasing and merging?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "In which situation must I never rebase?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What does git reset --hard do and when is it acceptable?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How many characters should a commit's summary line have?",
+   "expected": "Retrieved[^\\n]*git\\-workflow\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is an embedding?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What does retrieval-augmented generation do before it calls the model?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Why should long model answers be streamed?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Is caching repeated LLM requests worthwhile?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "Which metrics measure retrieval quality?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "What is a vector database used for in a RAG pipeline?",
+   "expected": "Retrieved[^\\n]*llm\\-guardrails\\.md",
+   "judge": "regex"
+  },
+  {
+   "input": "How do I push an image to a private registry?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I use Docker secrets?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I run the Docker daemon in rootless mode?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I add a health check to a Dockerfile?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the difference between ENTRYPOINT and CMD?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I package a Docker app as a Helm chart?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I use asyncio.Queue for a producer-consumer pattern?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I run asyncio code inside a Jupyter notebook?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What does asyncio.Semaphore do?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I cancel a running asyncio task?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I make parallel HTTP requests with aiohttp?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is uvloop and does it speed up asyncio?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How should I version my REST API?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I return rate-limit information to API clients?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How does HATEOAS work?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the difference between REST and GraphQL?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I secure an API with JWT tokens?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I document an API with OpenAPI?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I tune a hash join?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I create a partial index in PostgreSQL?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is a covering index?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I rebuild a fragmented index?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How does a GIN index work?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the difference between clustered and non-clustered indexes?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I resolve a merge conflict?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I use git bisect to find a bug?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What does git stash do?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I set up git hooks?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I use git submodules?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I tag a release?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I choose a chunk size for my documents?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How does BM25 compare to dense retrieval?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "What is the difference between temperature and top-p?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I implement function calling?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I detect toxic content in model outputs?",
+   "expected": "I don't know",
+   "judge": "contains"
+  },
+  {
+   "input": "How do I choose an embedding model?",
+   "expected": "I don't know",
+   "judge": "contains"
+  }
+ ]
+}

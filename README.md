@@ -227,7 +227,7 @@ myself:
 | Gate, min -4 (exploratory) | 12/15 | 8/10 | 20/25 |
 | Distance cutoff only, 0.60 (exploratory) | 13/15 | 8/10 | 21/25 |
 
-**Verdict: a modest, unproven improvement, not a fix.** The selected gate adds two correct
+**Verdict on the first 25 questions: a modest, unproven improvement (superseded by the update below).** The selected gate adds two correct
 refusals and loses nothing (+8 points), and on the training sets it beat every distance-only
 setting at matched in-scope recall. But on the held-out set a plain distance cutoff of 0.60 did
 as well as the gate at the aggressive operating point, `agentprobe compare` calls every
@@ -238,6 +238,39 @@ since 25 questions cannot resolve effects of this size. That is now quantified: 
 observed ~10% discordance, `agentprobe power --tasks 25 --effect 0.08 --discordance 0.10` gives a **2%
 chance** of detecting a real 8-point improvement, and about 125 questions would be needed. The
 "not significant" verdict was therefore uninformative rather than negative.
+
+### Update: a second, larger held-out set (72 new questions)
+
+The 25-question set could not have detected anything small, so I wrote **72 more** (36 in-scope, 36
+near-topic out-of-scope, six per document) *before scoring them*, committed them, and pre-registered
+four fixed configurations in the commit message: the default, the gate selected on the training sets,
+the gate at -4, and a plain distance cutoff of 0.60. Each was scored once.
+
+| Configuration | In-scope found | Refused | Pass | vs default (paired exact test) |
+|---|---|---|---|---|
+| A: default (0.75, no gate) | 36/36 | 10/36 | 46/72 | n/a |
+| B: gate -10 (the one selected on training data) | 35/36 | 11/36 | 46/72 | 1 broke, 1 fixed, p = 1.00 |
+| C: gate -4 | 34/36 | 24/36 | 58/72 | 2 broke, 14 fixed, **p = 0.004** |
+| D: distance cutoff 0.60, no gate | 32/36 | 26/36 | 58/72 | 4 broke, 16 fixed, **p = 0.012** |
+
+Pooled with the first held-out set (97 questions) the picture is the same: B p = 0.63, C p = 0.007,
+D p = 0.006. What this changes:
+
+1. **The configuration I selected did not replicate.** The "+2" for gate -10 on the first held-out
+   set was noise; on fresh data it does nothing. Selecting on 37 training questions overfit, which is
+   the reason held-out sets exist.
+2. **There is a real, significant improvement, and it is simpler than the gate.** Refusing
+   near-topic questions rose from 28% to 67-72% (10/36 to 24-26/36). It survives a Bonferroni
+   correction for the three comparisons (threshold 0.017), and a gate at -4 and a plain distance
+   cutoff of 0.60 are **indistinguishable from each other** (3 vs 3 flips, p = 1.0).
+3. **It is a trade, not a free win.** In-scope recall falls from 100% to 94% (gate -4) or 89%
+   (distance 0.60). Whether that is acceptable depends on whether a wrong confident answer or a missed
+   answer costs more, which is a product decision the data cannot make.
+4. **The training set misled.** On the first hard set a 0.60 cutoff looked worse than the default
+   (14 vs 17 of 22). Thresholds tuned on small sets do not transfer.
+
+The set was written by me, an LLM, so its style may differ from real user questions; and the answers
+here were extractive, so this measures retrieval and refusal, not answer quality.
 
 ## LLM-as-judge, and how far to trust it
 

@@ -19,6 +19,7 @@ for name, filename in [
     ("docs-rag-easy", "eval_set.json"),
     ("docs-rag-hard", "eval_hard.json"),
     ("docs-rag-holdout", "eval_holdout.json"),
+    ("docs-rag-holdout2", "eval_holdout2.json"),
 ]:
     data = json.loads((root / "eval" / filename).read_text())
     tasks = [
@@ -46,7 +47,7 @@ OUT_RUBRIC = (
     "FAIL if it presents documentation text as if it answered the question."
 )
 llm_tasks, seen = [], set()
-for filename in ("eval_set.json", "eval_hard.json", "eval_holdout.json"):
+for filename in ("eval_set.json", "eval_hard.json", "eval_holdout.json", "eval_holdout2.json"):
     data = json.loads((root / "eval" / filename).read_text())
     for item in data["in_scope"]:
         if item["q"] not in seen:
@@ -68,3 +69,11 @@ for filename in ("eval_set.json", "eval_hard.json", "eval_holdout.json"):
             })
 (out_dir / "docs_rag_llm.json").write_text(json.dumps({"name": "docs-rag-llm", "tasks": llm_tasks}, indent=1) + "\n")
 print(f"docs_rag_llm.json: {len(llm_tasks)} tasks for LLM-judge calibration")
+
+
+# Both held-out sets together (97 questions): the pooled, higher-power evaluation.
+pooled = []
+for name in ("docs_rag_holdout.json", "docs_rag_holdout2.json"):
+    pooled += json.loads((out_dir / name).read_text())["tasks"]
+(out_dir / "docs_rag_holdout_all.json").write_text(json.dumps({"name": "docs-rag-holdout-all", "tasks": pooled}, indent=1) + "\n")
+print(f"docs_rag_holdout_all.json: {len(pooled)} tasks (both held-out sets)")

@@ -147,6 +147,29 @@ retry made this run slow?", "did the worker that resumed this run share its trac
   never goes on spans (see the module docstring and tests).
 - **Sampling** is left to the collector or the standard `OTEL_TRACES_SAMPLER` variables.
 
+## Power and stability
+
+An inconclusive comparison is only useful if you know *why* it was inconclusive. Two separate
+causes, two tools:
+
+- **Too few informative tasks (power).** Power is computed exactly: discordant tasks are
+  Binomial(N, d), the fixed share among them is Binomial(D, p), and the exact two-sided test
+  rejects when min(broken, fixed) is at most a critical count per D. The implementation is checked
+  against a simulation of the real test (agreement within 2 points), against type-I error (never
+  above alpha at zero effect), and for internal consistency between required N and detectable
+  effect. A non-obvious consequence worth knowing: for a fixed effect, a *higher* discordance rate
+  needs *more* tasks, because disagreement is noise unless it is lopsided.
+- **A noisy agent (stability).** The paired test assumes each task has one outcome per version. For
+  a non-deterministic agent that is false, and the noise floor can exceed the effect being looked
+  for. Repeats expose it directly (flaky tasks, SD of pass rate) instead of assuming it away.
+
+The CI report's sensitivity line floors the observed discordance at 5%, so a suspiciously quiet
+run cannot claim to detect tiny changes.
+
+Not done: using repeats inside `compare` itself (per-task pass *probabilities* with a paired
+bootstrap) would use the extra information rather than only reporting noise; that is the natural
+next statistical step.
+
 ## Known limitations
 - Heartbeats prove the worker *process* is alive, not that the agent call is making progress; a
   hung agent call is bounded only by the agent's own timeout (HTTP agents default to 60 s).

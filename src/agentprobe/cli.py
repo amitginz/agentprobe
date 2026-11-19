@@ -118,6 +118,54 @@ def cmd_ci(args: argparse.Namespace) -> int:
     return 0 if args.no_fail else outcome.exit_code_failure
 
 
+def cmd_power(args: argparse.Namespace) -> int:
+    from .power import min_detectable_effect, power_for_effect, required_tasks
+
+    d, alpha, target = args.discordance, args.alpha, args.target_power
+    if args.effect is not None and args.tasks is not None:
+        p = power_for_effect(args.tasks, d, args.effect, alpha)
+        print(f"{args.tasks} tasks, {d:.0%} of tasks flipping: a {args.effect * 100:.1f}-point change is detected {p:.0%} of the time.")
+    elif args.effect is not None:
+        n = required_tasks(args.effect, d, alpha, target)
+        msg = f"about {n} tasks" if n else "more than 5000 tasks"
+        print(f"To detect a {args.effect * 100:.1f}-point change with {target:.0%} power (alpha {alpha}, {d:.0%} discordance) you need {msg}.")
+    elif args.tasks is not None:
+        mde = min_detectable_effect(args.tasks, d, alpha, target)
+        if mde is None:
+            print(f"{args.tasks} tasks cannot reach {target:.0%} power at {d:.0%} discordance, whatever the effect.")
+        else:
+            print(f"{args.tasks} tasks, {d:.0%} of tasks flipping: changes of {mde * 100:.1f} points or more are detected with {target:.0%} power.")
+    else:
+        print("give --tasks, --effect, or both", file=sys.stderr)
+        return 2
+    return 0
+
+
+def cmd_stability(args: argparse.Namespace) -> int:
+    from .stability import analyze
+
+    db = Database(args.db)
+    dataset_id = _load_dataset(db, args.dataset)
+    ids = []
+    for i in range(args.repeats):
+        with db.session() as s:
+            run = Run(dataset_id=dataset_id, agent=args.agent, label=f"repeat {i + 1}", concurrency=args.concurrency)
+            s.add(run)
+            s.commit()
+            ids.append(run.id)
+        execute_run(db, ids[-1])
+    with db.session() as s:
+        runs = [list(s.get(Run, i).results) for i in ids]
+        report = analyze(runs)
+    print(json.dumps(report.to_dict(), indent=2))
+    print(
+        f"\n{report.flaky}/{report.tasks} tasks flaky ({report.flaky_fraction:.0%}); pass rate "
+        f"{report.mean_pass_rate:.1%} +/- {report.pass_rate_sd * 100:.1f} pts. Changes under "
+        f"~{report.noise_floor_pts:.1f} points are indistinguishable from re-running the same agent."
+    )
+    return 1 if args.max_flaky is not None and report.flaky_fraction > args.max_flaky else 0
+
+
 def cmd_worker(args: argparse.Namespace) -> int:
     import logging
     import signal
@@ -171,6 +219,22 @@ def main(argv: list[str] | None = None) -> int:
     p_ci.add_argument("--alpha", type=float, default=0.05)
     p_ci.add_argument("--no-fail", action="store_true", help="report a regression but exit 0")
     p_ci.set_defaults(func=cmd_ci)
+
+    p_pw = sub.add_parser("power", help="how large a change can a dataset of N tasks detect?")
+    p_pw.add_argument("--tasks", type=int, help="dataset size")
+    p_pw.add_argument("--effect", type=float, help="true change in pass rate, e.g. 0.08 for 8 points")
+    p_pw.add_argument("--discordance", type=float, default=0.15, help="share of tasks whose outcome flips between versions")
+    p_pw.add_argument("--alpha", type=float, default=0.05)
+    p_pw.add_argument("--target-power", type=float, default=0.8)
+    p_pw.set_defaults(func=cmd_power)
+
+    p_st = sub.add_parser("stability", help="repeat an agent on a dataset and measure run-to-run noise")
+    p_st.add_argument("--dataset", required=True)
+    p_st.add_argument("--agent", required=True)
+    p_st.add_argument("--repeats", type=int, default=5)
+    p_st.add_argument("--concurrency", type=int, default=4)
+    p_st.add_argument("--max-flaky", type=float, default=None, help="exit 1 if more than this fraction of tasks is flaky")
+    p_st.set_defaults(func=cmd_stability)
 
     p_wk = sub.add_parser("worker", help="run a queue worker that executes enqueued runs")
     p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

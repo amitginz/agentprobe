@@ -115,6 +115,30 @@ This repo uses its own action in [`ci.yml`](.github/workflows/ci.yml), and that 
 GitHub-hosted runners. The CI test job also runs the Redis integration test against a real Redis
 service (62 tests, none skipped).
 
+## Is my dataset big enough? Is my agent stable?
+
+Two questions decide whether a comparison means anything, and both have a command.
+
+**Power: how big a change can N tasks detect?** A comparison only learns from tasks that flip
+between versions, so small datasets detect only large changes. The exact power of the paired test
+is computed (not approximated), and validated against a Monte Carlo simulation of the test itself:
+
+```bash
+agentprobe power --tasks 200 --discordance 0.10            # changes of 6.4 points or more are detected with 80% power
+agentprobe power --effect 0.08 --discordance 0.10          # you need about 125 tasks
+agentprobe power --tasks 25 --effect 0.08 --discordance 0.10   # an 8-point change is detected 2% of the time
+```
+
+The `ci` report and Action summary now include a sensitivity line, so "no significant change" is
+read in context ("this dataset only detects changes of 12 points or more").
+
+**Stability: how much is just noise?** LLM agents answer the same input differently, so one run is
+one noisy sample. `agentprobe stability --dataset d.json --agent A --repeats 5` repeats the agent,
+lists the *flaky* tasks (pass in some repeats, fail in others) and reports the run-to-run standard
+deviation. Differences smaller than about twice that are indistinguishable from re-running the
+baseline. `--max-flaky 0.1` fails the command when too much of the dataset is unstable. A flaky mock
+agent (`mock:accuracy=0.8,jitter=0.4`) makes this testable without an API key.
+
 ## Case study: evaluating a real RAG agent
 
 The first real agent under test is my own `docs-rag-mcp` (ChromaDB retrieval over
@@ -186,7 +210,10 @@ as well as the gate at the aggressive operating point, `agentprobe compare` call
 difference *not significant* (exact McNemar p = 0.50 and 0.73 against the default), and the
 gate still lets through questions like "How do I sign my Git commits with GPG?". I kept it
 opt-in and documented the numbers as they are. The real next step is a much larger labelled set,
-since 25 questions cannot resolve effects of this size.
+since 25 questions cannot resolve effects of this size. That is now quantified: at the
+observed ~10% discordance, `agentprobe power --tasks 25 --effect 0.08 --discordance 0.10` gives a **2%
+chance** of detecting a real 8-point improvement, and about 125 questions would be needed. The
+"not significant" verdict was therefore uninformative rather than negative.
 
 ## LLM-as-judge, and how far to trust it
 

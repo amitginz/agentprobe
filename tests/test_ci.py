@@ -73,6 +73,11 @@ def test_works_without_github_env(tmp_path, monkeypatch):
     assert ci(tmp_path, GOOD, SAME) == 0
 
 
+def test_report_states_what_the_dataset_can_detect(tmp_path, gh):
+    assert ci(tmp_path, GOOD, SAME) == 0
+    assert "Sensitivity: with 40 tasks" in gh[0].read_text()
+
+
 def test_report_escapes_untrusted_agent_output(tmp_path):
     outcome = run_ci(Database(f"sqlite:///{tmp_path / 'x.db'}"), DATASET, GOOD, BAD)
     outcome.broken[0].update(candidate="<script>alert(1)</script> | `x`\nnewline", baseline="ok")

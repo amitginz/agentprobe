@@ -135,6 +135,21 @@ def _flip_table(rows: list[dict], title: str, max_rows: int = 10) -> str:
     )
 
 
+def _sensitivity_line(c: Comparison) -> str:
+    """Say how much this dataset can actually detect, so 'no significant change' is read correctly."""
+    from .power import min_detectable_effect
+
+    if c.common_tasks == 0:
+        return ""
+    observed = (c.broken + c.fixed) / c.common_tasks
+    discordance = min(1.0, max(observed, 0.05))  # floor: a quiet run must not claim infinite power
+    mde = min_detectable_effect(c.common_tasks, discordance)
+    basis = f"{c.common_tasks} tasks, about {discordance:.0%} of them flipping between versions"
+    if mde is None:
+        return f"<sub>Sensitivity: with {basis}, this comparison cannot reach 80% power, so a non-significant result says little.</sub>"
+    return f"<sub>Sensitivity: with {basis}, changes of {mde * 100:.0f} points or more are detected with 80% power.</sub>"
+
+
 def render_markdown(o: CIOutcome, baseline_agent: str = "", candidate_agent: str = "") -> str:
     if o.verdict == "infrastructure_error":
         items = "\n".join(f"- {_cell(p, 300)}" for p in o.problems)
@@ -166,6 +181,7 @@ def render_markdown(o: CIOutcome, baseline_agent: str = "", candidate_agent: str
         f"**{c.broken} broke · {c.fixed} fixed** across {c.common_tasks} shared tasks. "
         f"Exact McNemar p = {c.p_value:.4f} ({sig} at α = {o.alpha}).\n\n"
     )
+    out += _sensitivity_line(c) + "\n\n"
     if baseline_agent or candidate_agent:
         out += f"<sub>baseline `{_cell(baseline_agent, 80)}` · candidate `{_cell(candidate_agent, 80)}`</sub>\n\n"
     if o.budget_limited:

@@ -128,8 +128,36 @@ toolchain (and a supply-chain surface) for little loss.
   on paired tasks.
 - **Live updates by polling** every 2.5 s, and only while a run is pending or running.
 
-Limitations: no authentication, no pagination beyond the latest 60 runs, and the dataset list is
+Limitations: no pagination beyond the latest 60 runs, and the dataset list is
 loaded once at page load (reload to see a newly created dataset).
+
+## Schema migrations
+
+- **Alembic, applied on open.** `Database()` upgrades the schema to the latest revision, so a fresh
+  SQLite file, a Postgres instance and an upgraded deployment all end up identical. The baseline
+  (`0001`) is written out by hand rather than generated from the models, so it stays frozen while
+  the models move on; a test fails whenever the models and the migrated schema diverge, which is
+  the signal to write the next migration (`alembic revision --autogenerate` output is a starting point).
+- **Databases that predate migrations** are adopted by stamping them at `0001`, but only after
+  checking the live schema against the models; one that is missing a column is refused with a clear
+  message rather than stamped and left to fail later at runtime.
+- **Concurrent starters.** The API and every worker open the database at boot. On PostgreSQL a
+  session-level advisory lock makes one of them migrate while the others wait and then find nothing to do.
+- `agentprobe db upgrade|current|check` for explicit control (`check` exits 1 on a stale revision or
+  drift, usable as a deploy gate). SQLite migrations use batch mode so later `ALTER`s work.
+
+## Authentication
+
+- **Two scopes, one dependency.** `AGENTPROBE_API_KEYS` grant full access; `AGENTPROBE_READ_API_KEYS`
+  allow only GET. Several comma-separated keys per scope make rotation a two-step deploy (add the
+  new key, then remove the old). Keys travel as `Authorization: Bearer` or `X-API-Key`.
+- **Deny by default for data.** Every data route hangs off one authenticated router, and a test
+  walks the app's routes and fails if any non-public one answers without a key, so a new route
+  added on the wrong object cannot ship open by accident. `/health` and the dashboard page are
+  public (the page holds no data; the browser asks for a key and keeps it in `sessionStorage` only).
+- **Constant-time comparison** against every configured key, and rejected keys are never echoed.
+- **Open mode is explicit.** With no keys configured the API stays open for local use and logs a
+  warning; `AGENTPROBE_REQUIRE_AUTH=1` makes that a startup error, for deployments.
 
 ## Telemetry
 
@@ -141,8 +169,6 @@ retry made this run slow?", "did the worker that resumed this run share its trac
   context is passed explicitly: captured into a W3C carrier at `create_run`, persisted in
   `runs.trace_context` (durable, survives re-delivery), restored by `execute_run`, and handed to
   task threads as an explicit parent context. A corrupt carrier is ignored rather than failing a run.
-- **Existing databases** need the new `runs.trace_context` column (`create_all` does not alter
-  tables); a migration tool such as Alembic is the right fix once schemas must evolve in place.
 - **Cardinality and privacy.** Only low-cardinality attributes go on metrics; sensitive content
   never goes on spans (see the module docstring and tests) Exceptions are the sneaky channel: an
   HTTP client's error text repeats the request URL, and the SDK's `record_exception` also exports a
@@ -189,6 +215,9 @@ levers, in that order, and the resume guarantee would then need re-checking agai
   hung agent call is bounded only by the agent's own timeout (HTTP agents default to 60 s).
 - Redis behaviour was also verified against a real Redis 8 server (integration test and benchmark), not only the fake.
 - Lease expiry assumes roughly synchronized clocks between workers (deadlines are wall-clock).
-- No authentication: intended for internal or local use.
+- Authentication is shared API keys (full or read-only), not per-user accounts: there is no key
+  management, audit log, rate limiting or per-dataset access control. Put the API behind TLS.
+- The Postgres advisory lock that serialises concurrent migrations is not covered by the automated
+  tests (they run on SQLite); the migration files themselves are dialect-neutral.
 - The Anthropic client is tested against a scripted stub, not against the live API.
 - Latency numbers include only the agent call, measured with `perf_counter`.

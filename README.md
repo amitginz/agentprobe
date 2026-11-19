@@ -40,7 +40,8 @@ broken tasks and zero fixed ones does. The test is implemented in ~10 lines of s
 | API | FastAPI: datasets, runs (async, background execution), results, `/compare` |
 | Dashboard | Zero-build web UI at `/`: KPI tiles, pass-rate / cost / p95 trend charts (inline SVG), run history, run drill-down, and a side-by-side **regression view** listing exactly which tasks a change broke or fixed; auto-refreshes while runs are in flight |
 | Queue | **Redis job queue with leases and heartbeats**: at-least-once delivery, crash recovery that resumes unfinished runs, poison-job protection, horizontally scalable `agentprobe worker` processes |
-| Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL` |
+| Storage | SQLAlchemy 2.0; SQLite by default, PostgreSQL via `DATABASE_URL`; **Alembic migrations** applied automatically, existing databases adopted safely (`agentprobe db check` as a deploy gate) |
+| Security | Optional **API keys** (full and read-only scopes, rotation, constant-time check); `AGENTPROBE_REQUIRE_AUTH=1` refuses to start without keys |
 | Observability | **OpenTelemetry** traces and metrics: one trace per run (`create_run` → `run` → `task` → `agent.call` / `judge.evaluate`), context carried API → queue → worker and into HTTP agents, OTLP export, Jaeger in docker-compose |
 | Ops | Dockerfile, docker-compose (API + workers + Redis + Postgres), **reusable GitHub Action** that gates PRs on agent quality |
 
@@ -58,6 +59,18 @@ uvicorn agentprobe.api:app_factory --factory --reload   # http://localhost:8000/
 docker compose up --build                                # API + 2 workers + Redis + PostgreSQL
 pytest
 ```
+
+Secure it (otherwise the API is open, which is fine on localhost):
+
+```bash
+export AGENTPROBE_API_KEYS=$(openssl rand -hex 24)          # full access
+export AGENTPROBE_READ_API_KEYS=$(openssl rand -hex 24)     # GET only, e.g. for the dashboard
+export AGENTPROBE_REQUIRE_AUTH=1                            # refuse to start without a key
+curl -H "Authorization: Bearer $AGENTPROBE_API_KEYS" localhost:8000/runs
+```
+
+The dashboard asks for a key when the server requires one. Keys are shared secrets, not user
+accounts; put the API behind TLS. Schema changes ship as migrations: `agentprobe db upgrade`.
 
 Execution modes: with `REDIS_URL` set the API only enqueues runs and returns `202`; any number of
 `agentprobe worker` processes (on any machine that can reach Redis and the database) execute them.

@@ -27,6 +27,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
       OTEL_METRICS_EXPORTER: none   # Jaeger stores traces only
+      # AGENTPROBE_API_KEYS: change-me   # uncomment to require an API key (see README)
     ports: ["8000:8000"]
     depends_on: &deps
       db: { condition: service_healthy }

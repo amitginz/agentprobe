@@ -1,5 +1,6 @@
 """Database setup and ORM models.
 
+The schema is managed by Alembic migrations (see migrate.py), applied when a Database is opened.
 SQLite is the zero-config default; set DATABASE_URL to a PostgreSQL URL
 (e.g. postgresql+psycopg://user:pw@host/db) for multi-instance deployments.
 """
@@ -108,7 +109,7 @@ class HumanLabel(Base):
 
 
 class Database:
-    def __init__(self, url: str | None = None) -> None:
+    def __init__(self, url: str | None = None, migrate: bool = True) -> None:
         self.url = url or os.environ.get("DATABASE_URL", "sqlite:///agentprobe.db")
         kwargs: dict = {}
         if self.url.startswith("sqlite"):
@@ -117,7 +118,10 @@ class Database:
         if self.url.startswith("sqlite"):
             event.listen(self.engine, "connect", _sqlite_pragmas)
         self._factory = sessionmaker(self.engine, expire_on_commit=False)
-        Base.metadata.create_all(self.engine)
+        if migrate:
+            from .migrate import upgrade  # imported here: migrate needs the models above
+
+            upgrade(self.engine)
 
     @contextmanager
     def session(self) -> Iterator:

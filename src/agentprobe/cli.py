@@ -231,6 +231,22 @@ def cmd_worker(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_db(args: argparse.Namespace) -> int:
+    from . import migrate
+
+    db = Database(args.db, migrate=False)
+    if args.action == "upgrade":
+        migrate.upgrade(db.engine)
+    rev, head = migrate.current_revision(db.engine), migrate.head_revision()
+    print(f"revision {rev or 'none'} (latest {head})")
+    if args.action == "check":
+        diff = migrate.schema_diff(db.engine)
+        if rev != head or diff:
+            print("schema is not up to date: run `agentprobe db upgrade`" if rev != head else f"schema drift: {diff}")
+            return 1
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="agentprobe")
     parser.add_argument("--db", default=None, help="database URL (default: sqlite:///agentprobe.db)")
@@ -294,6 +310,10 @@ def main(argv: list[str] | None = None) -> int:
     p_wk.add_argument("--redis-url", default=os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
     p_wk.add_argument("--lease", type=float, default=60.0, help="seconds before a silent worker's job is requeued")
     p_wk.set_defaults(func=cmd_worker)
+
+    p_db = sub.add_parser("db", help="schema migrations: upgrade to the latest, show the revision, or check")
+    p_db.add_argument("action", choices=["upgrade", "current", "check"])
+    p_db.set_defaults(func=cmd_db)
 
     args = parser.parse_args(argv)
     from .telemetry import setup_telemetry

@@ -113,8 +113,28 @@ const DONE = new Set(["completed", "budget_exceeded"]);
 
 const state = { datasets: [], dsId: null, runs: [], selected: [], open: null, view: null };
 
-async function api(path) {
-  const r = await fetch(path);
+// The key lives only in this tab's sessionStorage and is sent only to this server.
+const keyStore = {
+  get() { try { return sessionStorage.getItem("agentprobe-key") || ""; } catch (_) { return ""; } },
+  set(v) { try { sessionStorage.setItem("agentprobe-key", v); } catch (_) {} },
+  clear() { try { sessionStorage.removeItem("agentprobe-key"); } catch (_) {} },
+};
+let asking = null;   // one prompt at a time, even when several requests fail together
+function askForKey() {
+  asking = asking || Promise.resolve().then(() => {
+    const k = window.prompt("This AgentProbe server requires an API key:");
+    if (k) keyStore.set(k.trim());
+    return !!k;
+  }).finally(() => { asking = null; });
+  return asking;
+}
+async function api(path, retried = false) {
+  const key = keyStore.get();
+  const r = await fetch(path, key ? { headers: { Authorization: "Bearer " + key } } : {});
+  if (r.status === 401 && !retried) {
+    keyStore.clear();
+    if (await askForKey()) return api(path, true);
+  }
   if (!r.ok) {
     let msg = r.status + " " + r.statusText;
     try { msg = (await r.json()).detail || msg; } catch (_) {}

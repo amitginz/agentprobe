@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hmac
+import logging
 import os
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -21,6 +23,27 @@ from .runner import execute_run, fail_run
 from .telemetry import agent_kind, capture_context, setup_telemetry, tracer
 
 DASHBOARD_HTML = Path(__file__).parent / "dashboard" / "index.html"
+log = logging.getLogger("agentprobe.api")
+
+
+def _split_keys(value: str | None) -> list[str]:
+    return [k.strip() for k in (value or "").split(",") if k.strip()]
+
+
+def _bearer(request: Request) -> str:
+    header = request.headers.get("authorization", "")
+    scheme, _, token = header.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        return token.strip()
+    return request.headers.get("x-api-key", "").strip()
+
+
+def _matches(candidate: str, keys: list[str]) -> bool:
+    # compare against every key (no early exit) in constant time
+    ok = False
+    for key in keys:
+        ok |= hmac.compare_digest(candidate.encode(), key.encode())
+    return ok
 
 
 class TaskIn(BaseModel):
@@ -57,19 +80,49 @@ def create_app(
     database_url: str | None = None,
     run_inline: bool = False,
     queue: RedisQueue | None = None,
+    api_keys: list[str] | None = None,
+    read_keys: list[str] | None = None,
 ) -> FastAPI:
     """App factory.
 
     Execution mode: `run_inline` runs synchronously (tests); a `queue` hands runs to separate
     worker processes; with neither, runs execute in a background task of this process.
+
+    Authentication: `api_keys` (default: env AGENTPROBE_API_KEYS, comma-separated) grant full access;
+    `read_keys` (env AGENTPROBE_READ_API_KEYS) may only issue GET requests. Send a key as
+    `Authorization: Bearer <key>` or `X-API-Key`. With no keys configured the API is open (fine on
+    localhost; the server logs a warning) unless AGENTPROBE_REQUIRE_AUTH=1, which refuses to start.
+    `/health` and the dashboard page (which holds no data) are always public.
     """
     setup_telemetry()  # no-op unless OTEL_EXPORTER_OTLP_ENDPOINT / AGENTPROBE_OTEL_CONSOLE is set
     db = Database(database_url)
     app = FastAPI(title="AgentProbe", version=__version__)
 
+    full_keys = api_keys if api_keys is not None else _split_keys(os.environ.get("AGENTPROBE_API_KEYS"))
+    ro_keys = read_keys if read_keys is not None else _split_keys(os.environ.get("AGENTPROBE_READ_API_KEYS"))
+    auth_enabled = bool(full_keys or ro_keys)
+    if not auth_enabled:
+        if os.environ.get("AGENTPROBE_REQUIRE_AUTH", "").lower() in ("1", "true", "yes"):
+            raise RuntimeError("AGENTPROBE_REQUIRE_AUTH is set but no AGENTPROBE_API_KEYS are configured")
+        log.warning("API authentication is disabled: set AGENTPROBE_API_KEYS to require an API key")
+
+    def require_auth(request: Request) -> None:
+        if not auth_enabled:
+            return
+        key = _bearer(request)
+        if key and _matches(key, full_keys):
+            return
+        if key and _matches(key, ro_keys):
+            if request.method in ("GET", "HEAD", "OPTIONS"):
+                return
+            raise HTTPException(403, "this API key is read-only")
+        raise HTTPException(401, "missing or invalid API key", headers={"WWW-Authenticate": "Bearer"})
+
+    api = APIRouter(dependencies=[Depends(require_auth)])
+
     @app.get("/health")
     def health() -> dict:
-        info: dict = {"status": "ok", "version": __version__, "execution": "inline"}
+        info: dict = {"status": "ok", "version": __version__, "execution": "inline", "auth": auth_enabled}
         if queue is not None:
             info["execution"] = "queue"
             try:
@@ -81,7 +134,7 @@ def create_app(
             info["execution"] = "in-process"
         return info
 
-    @app.post("/datasets", status_code=201)
+    @api.post("/datasets", status_code=201)
     def create_dataset(body: DatasetIn) -> dict:
         for t in body.tasks:
             if t.judge not in JUDGE_NAMES:
@@ -94,7 +147,7 @@ def create_app(
             s.commit()
             return {"id": ds.id, "name": ds.name, "tasks": len(ds.tasks)}
 
-    @app.get("/datasets")
+    @api.get("/datasets")
     def list_datasets() -> list[dict]:
         with db.session() as s:
             return [
@@ -102,7 +155,7 @@ def create_app(
                 for d in s.scalars(select(Dataset).order_by(Dataset.id))
             ]
 
-    @app.post("/runs", status_code=202)
+    @api.post("/runs", status_code=202)
     def create_run(body: RunIn, background: BackgroundTasks) -> dict:
         with tracer().start_as_current_span(
             "agentprobe.create_run",
@@ -136,7 +189,7 @@ def create_app(
             background.add_task(execute_run, db, run_id)
         return {"id": run_id, "status": "pending"}
 
-    @app.get("/runs")
+    @api.get("/runs")
     def list_runs(dataset_id: int | None = None, limit: int = 100) -> list[dict]:
         """Most recent `limit` runs, oldest first so clients can plot them as a time series."""
         with db.session() as s:
@@ -149,13 +202,13 @@ def create_app(
             }
             return [_run_summary(r, n_tasks.get(r.dataset_id, 0)) for r in runs]
 
-    @app.get("/runs/{run_id}")
+    @api.get("/runs/{run_id}")
     def get_run(run_id: int) -> dict:
         with db.session() as s:
             run = _get_run(s, run_id)
             return _run_summary(run, len(s.get(Dataset, run.dataset_id).tasks))
 
-    @app.get("/runs/{run_id}/results")
+    @api.get("/runs/{run_id}/results")
     def get_results(run_id: int) -> list[dict]:
         with db.session() as s:
             run = _get_run(s, run_id)
@@ -177,7 +230,7 @@ def create_app(
                 for r in sorted(run.results, key=lambda r: r.task_id)
             ]
 
-    @app.get("/compare")
+    @api.get("/compare")
     def compare(
         baseline: int, candidate: int, alpha: float = 0.05, details: bool = False
     ) -> dict:
@@ -190,13 +243,13 @@ def create_app(
                 out.update(_flipped_tasks(s, b, c))
             return out
 
-    @app.get("/runs/{run_id}/label-sample")
+    @api.get("/runs/{run_id}/label-sample")
     def get_label_sample(run_id: int, n: int = 30) -> list[dict]:
         with db.session() as s:
             _get_run(s, run_id)
             return label_sample(s, run_id, max(1, min(n, 200)))
 
-    @app.post("/runs/{run_id}/labels")
+    @api.post("/runs/{run_id}/labels")
     def post_labels(run_id: int, body: LabelsIn) -> dict:
         with db.session() as s:
             _get_run(s, run_id)
@@ -215,7 +268,7 @@ def create_app(
             s.commit()
             return {"labeled": s.query(HumanLabel).filter_by(run_id=run_id).count()}
 
-    @app.get("/runs/{run_id}/calibration")
+    @api.get("/runs/{run_id}/calibration")
     def get_calibration(run_id: int, min_n: int = 30) -> dict:
         with db.session() as s:
             _get_run(s, run_id)
@@ -265,7 +318,9 @@ def create_app(
             raise HTTPException(404, f"run {run_id} not found")
         return run
 
+    app.include_router(api)
     app.state.db = db
+    app.state.auth_enabled = auth_enabled
     return app
 
 

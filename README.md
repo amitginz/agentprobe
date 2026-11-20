@@ -8,11 +8,11 @@ ship a prompt or model change: **did it get better, worse, or is that just noise
 
 ```text
 $ agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.95" --label v1
-run 1 [completed] 39/40 passed
+run 1 [completed] 38/40 passed
 $ agentprobe run --dataset examples/dataset.json --agent "mock:accuracy=0.60" --label v2
-run 2 [completed] 27/40 passed
+run 2 [completed] 29/40 passed
 $ agentprobe compare --baseline 1 --candidate 2 --fail-on-regression
-REGRESSION: pass rate 97.5% -> 67.5% (broken=12, fixed=0, p=0.0005)
+REGRESSION: pass rate 95.0% -> 72.5% (broken=9, fixed=0, p=0.0039)
 $ echo $?
 1
 ```
@@ -51,7 +51,14 @@ Try the dashboard with seeded history (a bad model swap is hidden in there for y
 python examples/seed_demo.py && uvicorn agentprobe.api:app_factory --factory   # http://localhost:8000
 ```
 
-Run the service:
+Install from PyPI (the package is `agentprobe-evals`; the command and import are `agentprobe`):
+
+```bash
+pip install agentprobe-evals            # extras: [otel], [postgres]
+agentprobe run --dataset dataset.json --agent "mock:accuracy=0.95" --label v1
+```
+
+Run the service from source:
 
 ```bash
 pip install -e ".[dev]"
@@ -134,7 +141,7 @@ Every run is traceable. Point AgentProbe at any OTLP/HTTP collector and each eva
 a trace you can open in Jaeger, Tempo, Honeycomb or Datadog:
 
 ```bash
-pip install "agentprobe[otel]"
+pip install "agentprobe-evals[otel]"
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 agentprobe ci --dataset ... --baseline-agent ... --candidate-agent ...
 docker compose up   # API + workers + Jaeger UI on http://localhost:16686
 ```

@@ -1,0 +1,32 @@
+name: publish
+# Publishes to PyPI when a GitHub Release is published. Uses PyPI "trusted publishing" (OIDC):
+# no API token is stored in this repository. One-time setup is described in docs/RELEASING.md.
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - name: tag must match the package version
+        run: |
+          v=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "release tag ${GITHUB_REF_NAME} != package version v$v"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/ }
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@release/v1

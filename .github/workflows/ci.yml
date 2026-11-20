@@ -18,6 +18,8 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest -q
+      - name: package builds and passes twine checks
+        run: pip install build twine && python -m build && twine check dist/*
   agent-quality-gate:
     # Dogfooding the reusable action in this repo: the candidate is a deliberately identical
     # configuration, so this job passes; point it at your own agent endpoints in real use.
